@@ -1,0 +1,64 @@
+This directory contains the files required in order to run a sample version of the custom Topic Modeling Workflow that is implemented in PAW. For more information on how the workflow works or what it please reference:
+https://tigerprints.clemson.edu/computing_pubs/38.
+
+There are some steps that you must do before this example will run properly.
+1. Create an S3 bucket with a prefix of cc. in your account (ex: cc.mytopicmodelingworkflow). This will be the bucket that the datasets reside in and where the experiment results will go.
+2. Create the following folders within your S3 bucket created in Step 1:
+    Datasets
+    Datasets/NIPS
+    Datasets/NIPS/PLDA-base
+    Datasets/NIPS/PLDA-base/experiments
+3. Upload the NIPS dataset included in this directory (corpus.full.dat and vocab.full.dat) into the Datasets/NIPS/PLDA-base folder in S3.
+4. Modify the TopicModelingWorkflowExample.conf to include the items specific to your AWS account such as the key-name/password/VPC-id/Subnet-id etc.
+5. Run ccAutomaton utilizing the TopicModelingWorkflowExample.conf file.
+   python Create_Processing_Environment.py -et CloudyCluster -cf ConfigurationFiles/TopicModelingWorkflowExample.conf -all
+
+****NOTE: Running this example to completion takes about 2 hours from creation to completion due to the smaller instance types used for cheaper Spot Pricing. YOU WILL BE CHARGED FOR THE COMPUTE TIME USED WHEN RUNNING THIS EXAMPLE.****
+
+
+When using this experiment and data please cite the following:
+This data contains a processed form of the Neural Information Processing Systems (NIPS) conference proceedings from the years 1987-2003. We took the data described in:
+
+A. Globerson, G. Chechik, F. Pereira, and N. Tishby. Euclidean Embedding of Co-occurrence Data. The Journal of Machine Learning Research, 8:2265-2295, 2007.
+
+and accessible from:
+
+http://ai.stanford.edu/~gal/data.html
+
+and further processed it using MATLAB, removing infrequent words, discarding the author information, and mapping documents to what years they were published.
+
+###########################
+#  Argument Descriptions  #
+###########################
+configFilePath: the file that contains the parameters for the Topic Modeling Experiment. (ex: Experiments/NIPS_test.py)
+
+sharedFilesystemPath: the full path to the filesystem location where you want the workflow to put the data required for the experiment. This can be a shared filesystem path or not. In initial experiments with a small number of instances a shared filesystem works fine, but with a large number of instances the shared filesystem approach does not work as well. (ex: /home/myuser)
+
+pullFromS3: sets whether or not the jobs should pull down the generated data from S3 before running. This allows all machines to have the same data. (ex: true|false)
+
+s3BucketName: sets the S3 bucket that the results of the job will be uploaded to upon completion (ex: cc.mybucket)
+
+useCCQ: tells ccAutomaton whether or not to use CCQ for the job submission. In this iteration, this MUST be set to true. (ex: true)
+
+spotPrice: specifies the Spot price for each instance type requested. This can be a single price or a list of prices but the number of prices must match the number of instance types listed in the requestedInstanceTypes parameter. (ex: 0.10 | 0.10,0.20)
+
+requestedInstanceTypes: specifies the instance types that will be use to run the workflow. This can be a single instance type or a list of instance types. (ex: t2.small | t2.small,t2.large)
+
+schedulerToUse: the name of the CloudyCluster Scheduler to use. This name must match the name assigned to the scheduler within CloudyCluster. (ex: myScheduler)
+
+useSpotFleet: specifies that ccAutomaton should use AWS Spot Fleet to launch the instances required for the job. (ex: true | false)
+
+spotFleetType: specifies the launching strategy of the AWS Spot Fleet. Valid values are "lowestPrice" and "diversified". LowestPrice will attempt to launch all instances in the Availability Zone with the lowest Spot Price, while diversified will attempt to spread the instance launches out between different Availability Zones. (ex: lowestPrice | diversified)
+
+spotFleetTotalSize: specifies the number of capacity units that the AWS Spot Fleet will attempt to launch for the job. The number of weights specified MUST match the number of instance types specified in the "requestedInstanceTypes" variable.
+
+submitInstantly: specifies that ccAutomaton should tell CCQ to submit the job before all of the instances requested have launched. In this workflow multiple jobs are submitted at the same time and will execute as more instances launch. To maximize the compute time, as soon as one of the instances launches the jobs should start running. (ex: true | false)
+
+skipProvisioning: specifies that CCQ should not attempt to provision users to the compute instances. This causes the startup process to take longer and can be safely skipped if the users are already added to the image. However, if the user is not already on on the image, the job WILL FAIL. (ex: true | false)
+
+spotFleetWeights: specifies the "weight" of each instance type requested for an AWS Spot Fleet. The number of weights specified MUST equal the number of instance types specified in the "requestedInstanceTypes" variable. These weights can be either a fractional value or a whole number. Refer to the AWS Spot Fleet documentation for further information on how to set these values. (ex: 1,1 | 0.1,0.1)
+
+######################################
+#  Example Configuration File Entry  #
+######################################
+workflow1: {"name": "myWorkflow", "type": "topicModelingPipeline", "schedulerType": "Slurm", "options": {"configFilePath": "Experiments/NIPS_test.py", "sharedFilesystemPath": "/home/myuser", "pullFromS3": "true", "s3BucketName": "cc.ccautomatonbucket", "useCCQ": "true", "spotPrice": "0.20,0.10", "requestedInstanceTypes": "c4.2xlarge,c4.xlarge", "schedulerToUse": "Slurm", "useSpotFleet": "true", "spotFleetType": "diversified", "spotFleetTotalSize": "2", "submitInstantly": "true", "skipProvisioning": "false", "spotFleetWeights": "1,1"}}
