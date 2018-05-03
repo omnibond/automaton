@@ -13,4 +13,4 @@ It is driven by a single configuration file that defines all of the parameters r
 
 This framework + CloudyCluster was utilized by the 1.1m vCPU run referenced here: https://aws.amazon.com/blogs/aws/natural-language-processing-at-clemson-university-1-1-million-vcpus-ec2-spot-instances/
 
-Check the long readme for usage instructions.
+Check the long readme for usage instructions. https://github.com/omnibond/automaton/blob/master/README
