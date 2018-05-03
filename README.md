@@ -1,5 +1,5 @@
 # automaton
-Automation system for CloudyCluster environment creation and job submission, that has a dual use of both workflow integration and testing system.  It has been a collaborative project between the CU Dice Lab and Omnibond.
+Automation system for CloudyCluster environment creation and job submission, that has a dual use of both workflow integration and testing system.  It is a collaborative project between the CU Dice Lab and Omnibond.
 
 # au·tom·a·ton  
 /ôˈtämədən,ôˈtäməˌtän/  
