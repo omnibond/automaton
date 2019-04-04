@@ -15,7 +15,7 @@ import traceback
 import json
 from random import randint
 import time
-
+import emailScript as tidings
 import ConfigParser
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/Schedulers"))
@@ -74,6 +74,8 @@ def main():
     try:
         import botocore
         import boto3
+        import paramiko
+        import requests
     except Exception as e:
         print "The use of ccAutomaton requires the botocore and boto3 Python libraries to operate properly. These can be installed using pip via the following commands:"
         print "pip install botocore boto3"
@@ -120,6 +122,19 @@ def main():
         print "Unable to find the requested cloud type in the configuration file specified. Please check the file and be sure that there is a cloudtype field in the general section and try again."
         sys.exit(0)
 
+    # Check to see if email is enabled on job fails and cluster fails
+    ###TODO Encrypt Password and use username as a key in a seperate file with utility to set it (KBW/JCE)
+    try:
+        emailParams = {}
+        emailParams['email'] = configurationFileParameters['General']['email']
+        emailParams['sender'] = configurationFileParameters['General']['sender']
+        emailParams['sendpw'] = configurationFileParameters['General']['sendpw']
+        emailParams['smtp'] = configurationFileParameters['General']['smtp']
+    except Exception as e:
+        print "Emails disabled\nNow continuing"
+        emailParams = None
+        pass
+
     # Get the profile to use for the resource creation (switches out which account to use)
     if profile is None:
         try:
@@ -153,7 +168,6 @@ def main():
 
     try:
         pempath = configurationFileParameters['UserInfo']['pempath']
-        #print "pempath is "+str(pempath)
     except Exception as e:
         print "Unable to find the pempath(file path to your pemkey) in the configuration file specified.  Please check the file and be sure that there is a pempath field in the UserInfo section and try again."
 
@@ -254,12 +268,13 @@ def main():
 
     if "dc" in stagesToRun:
         if "cc" not in stagesToRun:
-            if controlResourceName is None:
-                try:
-                    controlResourceName = configurationFileParameters['General']['controlresourcename']
-                except Exception as e:
-                    print "Unable to find the name for the Control Resources to delete. Please check the configuration file and be sure that there is a controlresourcename field in the General section or specify the name using the -crn commandline argument and try again."
-                    sys.exit(0)
+            if str(cloudType).lower() == "aws":
+                if controlResourceName is None:
+                    try:
+                        controlResourceName = configurationFileParameters['General']['controlresourcename']
+                    except Exception as e:
+                        print "Unable to find the name for the Control Resources to delete. Please check the configuration file and be sure that there is a controlresourcename field in the General section or specify the name using the -crn commandline argument and try again."
+                        sys.exit(0)
 
         if region is None:
             try:
@@ -294,35 +309,82 @@ def main():
     if "cc" in stagesToRun:
         if os.path.isfile('infoFile'):
             os.remove('infoFile')
-        resourceName = str(environment.name) + "ControlResources-" + str(uuid.uuid4())[:4]
+        if str(cloudType).lower() == "aws":
+            resourceName = str(environment.name) + "ControlResources-" + str(uuid.uuid4())[:4]
+        elif str(cloudType).lower() == "gcp":
+            resourceName = str(environment.name) + "-" + str(uuid.uuid4())[:4]
         environment.controlResourceName = resourceName
-        # f = open('infoFile', 'w')
-        # f.write("controlResources="+str(resourceName)+"\n")
-        # f.close()
-
-        print "Now creating the Control Resources. The Control Resources will be named: " + str(resourceName)
-        kwargs = {"templateLocation": environment.controlParameters['templatelocation'], "resourceName": resourceName}
-        values = environment.createControl(**kwargs)
-        if values['status'] != "success":
-            print values['payload']['error']
-            print values['payload']['traceback']
-            sys.exit(0)
-        else:
-            print "Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section."
-            f = open('infoFile', 'a')
-            f.write('controlDNS='+str(environment.dnsName)+"\n")
+        if str(cloudType).lower() == "aws":
+            f = open('infoFile', 'w')
+            f.write("controlResources="+str(resourceName)+"\n")
             f.close()
+
+        ### Had to make an alternate path right here for aws and gcp.  The AWS path creates a Cloud Formation Stack using a CFT.  Currently, we don't use anything anagalous to the CFT with GCP, therefore we only need to summon a Control Node.
+
+        if str(cloudType).lower() == "aws":
+            print "Now creating the Control Resources. The Control Resources will be named: " + str(resourceName)
+            kwargs = {"templateLocation": environment.controlParameters['templatelocation'], "resourceName": resourceName}
+            values = environment.createControl(**kwargs)
+            if values['status'] != "success":
+                moosage = "There was an error creating the Control Resources"; print moosage
+                try:
+                    error = values['payload']['error']; print error
+                except Exception as e:
+                    error = "N/A"
+                try:
+                    traceb = values['payload']['traceback']; print traceb
+                except Exception as e:
+                    traceb = "N/A"
+                if emailParams:
+                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                sys.exit(0)
+            else:
+                print "Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section."
+                f = open('infoFile', 'a')
+                f.write('controlDNS='+str(environment.dnsName)+"\n")
+                f.close()
+        elif str(cloudType).lower() == "gcp":
+            #  Just need instance type and image ID for Google Cloud (JCE)
+            print "Now creating the Control Node for Google Cloud"
+            kwargs = {"templateLocation": None, "resourceName": resourceName}
+            values = environment.createControl(**kwargs)
+            if values['status'] != "success":
+                moosage = "There was an error creating the Control Node"; print moosage
+                try:
+                    error = values['payload']['error']; print error
+                except Exception as e:
+                    error = "N/A"
+                try:
+                    traceb = values['payload']['traceback']; print traceb
+                except Exception as e:
+                    traceb = "N/A"
+                if emailParams:
+                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                sys.exit(0)                    
 
     if "ce" in stagesToRun:
         print "Getting session to Control Resource."
         if environment.sessionCookies is None:
             environment.getSession()
-
         print "Now creating the Environment named: " + str(environmentName) + "."
         values = environment.createEnvironment()
+        print "VALUES ARE"
+        print values
         if values['status'] != "success":
-            print values['payload']['error']
-            print values['payload']['traceback']
+            moosage = "There was an error creating the Environment."; print moosage
+            try:
+                error = values['error']; print error
+            except Exception as e:
+                error = "N/A"
+            try:
+                traceb = values['traceback']; print traceb
+            except Exception as e:
+                traceb = "N/A"
+            if emailParams:
+                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             sys.exit(0)
         else:
             print "Successfully finished creating the Environment named: " + str(environment.name) + "."
@@ -362,17 +424,35 @@ def main():
                     workflowClass = getattr(module, str(workflowType[0].upper() + workflowType[1:]))
                     workflow = workflowClass(**kwargs)
                     values = workflow.run(environment)
-                    #print "values var is "+str(values)
                     if values['status'] != "success":
-                        print "The execution of the workflow: " + str(jobToRun) + " failed."
-                        print values['payload']['error']
-                        print values['payload']['traceback']
+                        moosage = "The execution of the workflow: " + str(jobToRun) + " failed."; print moosage
+                        try:
+                            error = values['payload']['error']; print error
+                        except Exception as e:
+                            error = "N/A"
+                        try:
+                            traceb = values['payload']['traceback']; print traceb
+                        except Exception as e:
+                            traceb = "N/A"
+                        if emailParams:
+                            missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                            response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
                         values = workflow.monitor()
                         if values['status'] != "success":
-                            print "The monitoring of the workflow: " + str(jobToRun) + " failed."
-                            print values['payload']['error']
-                            print values['payload']['traceback']
+                            moosage = "The monitoring of the workflow: " + str(jobToRun) + " failed."; print moosage
+                            try:
+                                error = values['payload']['error']; print error
+                            except Exception as e:
+                                error = "N/A"
+                            try:
+                                traceb = values['payload']['traceback']; print traceb
+                            except Exception as e:
+                                traceb = "N/A"
+                            if emailParams:
+                                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+
                 elif "jobscript" in jobToRun:
                     print "Running jobScript"
                     tempObj = {}
@@ -396,11 +476,21 @@ def main():
                     import jobScript
                     newJobScript = jobScript.JobScript(**kwargs)
                     values = newJobScript.processJobScript()
-                    #print "values var is "+str(values)
                     if values['status'] != "success":
-                        print "The execution of the jobscript : " + str(jobToRun) + " failed."
-                        print values['payload']['error']
-                        print values['payload']['traceback']
+                        jobName = values['jobId']
+                        enviroName = values['environment']
+                        moosage = "Your Environment: " + enviroName + "\nYour job ID: " + jobName + "\nThe execution of the jobscript : " + str(jobToRun) + " failed."; print moosage
+                        try:
+                            error = values['payload']['error']; print error
+                        except Exception as e:
+                            error = "N/A"
+                        try:
+                            traceb = values['payload']['traceback']; print traceb
+                        except Exception as e:
+                            traceb = "N/A"
+                        if emailParams:
+                            missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                            response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
                         print values
                 else:
@@ -415,8 +505,18 @@ def main():
         print "Deleting the Environment named " + str(environmentName) + "."
         values = environment.deleteEnvironment()
         if values['status'] != "success":
-            print values['payload']['error']
-            print values['payload']['traceback']
+            moosage = "There was an issue deleting the environment: " + environmentName; print moosage
+            try:
+                error = values['payload']['error']; print error
+            except Exception as e:
+                error = "None"
+            try:
+                traceb = values['payload']['traceback']; print traceb
+            except Exception as e:
+                traceb = "None"
+            if emailParams:
+                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             sys.exit(0)
         else:
             print "The Environment named " + str(environment.name) + " have been successfully deleted."
@@ -428,12 +528,28 @@ def main():
         print "Deleting the Control Resources named " + str(environment.controlResourceName) + "."
         values = environment.deleteControl()
         if values['status'] != "success":
-            print values['payload']['error']
-            print values['payload']['traceback']
+            moosage = "There was an issue deleting the Control Resource: " + environment.controlResourceName; print moosage
+            try:
+                error = values['payload']['error']; print error
+            except Exception as e:
+                error = "None"
+            try:
+                traceb = values['payload']['traceback']; print traceb
+            except Exception as e:
+                traceb = "None"
+            if emailParams:
+                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
         else:
-            print "The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted."
+            if str(cloudType).lower() == "aws":
+                print "The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted."
+            elif str(cloudType).lower() == "gcp":
+                print "The Control Node was succesfully deleted."
 
     if "dff" in stagesToRun:
+        if str(cloudType).lower() != "aws":
+            print "Delete from file is not currently implemented for this cloud service."
+            sys.exit(0)
         print "Deleting the Environment and Control Resource"
         environment.name = None
         f = open('infoFile', 'r')
@@ -443,6 +559,7 @@ def main():
                 location = x.index('=')
                 environment.controlResourceName = x[location+1:].strip()
                 print "controlResourcename is \n"+str(environment.controlResourceName)
+            ### Ask BP about this.
             # if "controlDNS=" in x:
             #     location = x.index('=')
             #     controlDNS = x[location+1:]
@@ -458,8 +575,18 @@ def main():
             print "Deleting the Environment named " + str(environmentName) + "."
             values = environment.deleteEnvironment()
             if values['status'] != "success":
-                print values['payload']['error']
-                print values['payload']['traceback']
+                moosage = "There was an error deleting the Environment: " + environmentName; print moosage
+                try:
+                    error = values['payload']['error']; print error
+                except Exception as e:
+                    error = "None"
+                try:
+                    traceb = values['payload']['traceback']; print traceb
+                except Exception as e:
+                    error = "None"
+                if emailParams:
+                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                 sys.exit(0)
             else:
                 print "The Environment named " + str(environmentName) + " have been successfully deleted."
@@ -468,8 +595,18 @@ def main():
             print "Deleting the Control Resources named " + str(environment.controlResourceName) + "."
             values = environment.deleteControl()
             if values['status'] != "success":
-                print values['payload']['error']
-                print values['payload']['traceback']
+                moosage = "There was an issue deleting the control resources named: " + str(environment.controlResourceName)
+                try:
+                    error = values['payload']['error']; print error
+                except Exception as e:
+                    error = "None"
+                try:
+                    traceb = values['payload']['traceback']; print traceb
+                except Exception as e:
+                    traceb = "None"
+                if emailParams:
+                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             else:
                 print "The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted."
 

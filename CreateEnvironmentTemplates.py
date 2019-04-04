@@ -11,8 +11,8 @@ import sys
 import argparse
 import os
 import uuid
-
 import ConfigParser
+import ast
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/EnvironmentTemplates"))
 
 
@@ -118,6 +118,20 @@ def main():
         print "Unable to find the configuration for the " + str(templateName) + " template in the "+str(configFilePath)+ " file. Please check the file and try again."
         sys.exit(0)
 
+    # If GCP check and see if the login node and scheduler names are lower case, if not make them change it, and check to make sure the character length is less than 18.  If it is more than 18, sys exit and make them do it again.
+    if str(configurationFileParameters['General']['cloudtype']).lower() == "gcp":
+        # try:
+        for i in configurationFileParameters[str(templateName)]:
+            if "login" in i or "scheduler" in i or "filesystem" in i:
+                nameCheck = ast.literal_eval(configurationFileParameters[templateName][i])['name']
+                if len(str(nameCheck)) > 18:
+                    print "The name for " + str(i) + " is too many characters.  It needs to be 18 or less."
+                    sys.exit(0)
+                for letter in str(nameCheck):
+                    if letter.isupper():
+                        print "There is an uppercase letter in your " + str(i) + "'s instance's name.  All letters must be lowercase for gcp."
+                        sys.exit(0)
+
     kwargs = {"environmentType": environmentType, "parameters": configurationFileParameters[str(templateName)], "templateName": str(templateName)}
     # Load the module (ex: import cloudycluster)
     environmentTemplateClass = __import__(str(environmentType).lower()+"Templates")
@@ -129,7 +143,9 @@ def main():
     environmentTemplate = myClass(**kwargs)
 
     # Here we actually create the template from the configuration file
-    values = environmentTemplate.create()
+    cloudType = configurationFileParameters['General']['cloudtype']
+
+    values = environmentTemplate.create(cloudType)
     if values['status'] != "success":
         print values['payload']['error']
         print values['payload']['traceback']

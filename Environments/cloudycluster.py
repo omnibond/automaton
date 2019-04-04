@@ -97,16 +97,23 @@ class CloudyCluster(Environment):
         else:
             print "Successfully started the creation of the Control Resources. Now monitoring to determine when the resources are up and running."
             resourceId = values['payload']
-            f = open('infoFile', 'w')
-            f.write("controlResources="+str(resourceId)+"\n")
-            f.close()
-            print "The newly created Cloud Formation Stack Id is: " + str(resourceId)
-            values = resourceClass.monitorControlResources(resourceId, "creation")
+            if str(self.cloudType) == "aws":
+                f = open('infoFile', 'w')
+                f.write("controlResources="+str(resourceId)+"\n")
+                f.close()
+            if str(self.cloudType).lower() == "aws":
+                print "The newly created Cloud Formation Stack Id is: " + str(resourceId)
+                values = resourceClass.monitorControlResources(resourceId, "creation")
+            elif str(self.cloudType).lower() == "gcp":
+                values['status'] = "success"
             if values['status'] != "success":
                 return {"status": "error", "payload": values['payload']}
             else:
-                print "The Control Resources are up and running, retrieving the new IP address of the Control Resources."
-                values = resourceClass.getValue("InstanceIP", resourceId)
+                if str(self.cloudType).lower() == "aws":
+                    print "The Control Resources are up and running, retrieving the new IP address of the Control Resources."
+                    values = resourceClass.getValue("InstanceIP", resourceId)
+                elif str(self.cloudType).lower() == "gcp":
+                    values['status'] = "success"
                 if values['status'] != "success":
                     return {"status": "error", "payload": values['payload']}
                 else:
@@ -193,7 +200,7 @@ class CloudyCluster(Environment):
         if values['status'] != "success":
             return {"status": "error", "payload": values['payload']}
         else:
-            values = environmentTemplate.populate(self.name)
+            values = environmentTemplate.populate(self.name, self.cloudType)
             if values['status'] != "success":
                 return {"status": "error", "payload": values['payload']}
             else:
@@ -479,7 +486,11 @@ class CloudyCluster(Environment):
                 utilityResults = utilityResponse.content
                 utilityResults = json.loads(utilityResults)['Utility']['Utility']['instances']
                 for instance in utilityResults:
-                    if str(instance)[:2] == "i-":
+                    if str(self.cloudType).lower() == "aws":
+                        if str(instance)[:2] == "i-":
+                            if utilityResults[instance]["RecType"] == "WebDavNode":
+                                loginDomainName = utilityResults[instance]['domainName']
+                    elif str(self.cloudType).lower() == "gcp":
                         if utilityResults[instance]["RecType"] == "WebDavNode":
                             loginDomainName = utilityResults[instance]['domainName']
 
@@ -628,6 +639,8 @@ class CloudyCluster(Environment):
                 url = 'https://' + str(self.dnsName) + '/srv/startCluster'
                 r = requests.post(url, cookies=self.sessionCookies, json={'clusterObj': template})
                 response = json.loads(r.content)
+                print "RESPONSE IS "
+                print str(response)
                 if response['response'] != "success":
                     return {"status": "error", "payload": {"error": response['message'], "traceback": ''.join(traceback.format_stack())}}
                 else:
@@ -659,6 +672,8 @@ class CloudyCluster(Environment):
             except Exception as e:
                 print "Checking status error:"
                 print ''.join(traceback.format_exc())
+                print "Printing content of response\n"
+                print r.content
                 pass
 
             if maxTimeToWait < timeElapsed:

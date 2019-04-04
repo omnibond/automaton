@@ -15,7 +15,8 @@ import time
 import os
 import sys
 import requests
-
+import subprocess
+paramiko.util.log_to_file("paramiko.log")
 class JobScript(object):
     def __init__(self, name, options, schedulerType, environment):
         self.name = name
@@ -37,6 +38,7 @@ class JobScript(object):
             port = int(port)
         try:
             if private_key:
+
                 # Auth the previous way (without MFA and the auth_interactive method)
                 private_key = paramiko.rsakey.RSAKey.from_private_key(StringIO.StringIO(private_key))
 
@@ -51,7 +53,6 @@ class JobScript(object):
                     sock.connect((host, port))
                 except Exception as e:
                     print('Connect failed: ' + str(e))
-
                 transport = paramiko.Transport(sock)
                 try:
                     transport.start_client()
@@ -72,13 +73,16 @@ class JobScript(object):
                 if not transport.is_authenticated():
                     transport.auth_interactive(username, handler)
                 if not transport.is_authenticated():
-                    print('*** Authentication failed. :(')
+                    print('*** Authentication failed.')
                     transport.close()
         except paramiko.AuthenticationException as e:
+            print "except 1"
             print e.message
         except socket.error, (value, message):
+            print "except 2"
             print message
         except Exception as e:
+            print "except 3"
             print e.message
         if not private_key:
             return {'status': "success", "payload": transport}
@@ -101,14 +105,17 @@ class JobScript(object):
             filepath = kwargs['filepath']
             userName = kwargs['userName']
             password = kwargs['password']
+	    print kwargs
             if '.sh' not in filename:
                 filename = str(filename)+'.sh'
             url = "https://"+str(dns)+str(sharedDir)+"/"+str(filename)
+	    print url
             with open(str(filepath), 'rb') as f:
                 file = f.read()
             response = requests.request('PUT', url, auth=(userName, password), allow_redirects=False, data=file)
             print response.text
         except Exception as e:
+	 
             print "Error uploading file with webdav protocol"
             print e
             pass
@@ -301,6 +308,7 @@ class JobScript(object):
                                     return values
                                 else:
                                     # We have successfully submitted the job, now we need to monitor the job if specified by the user
+				    print values['payload']
                                     jobId = values['payload']['jobId']
                                     schedulerName = values['payload']['schedulerName']
 
@@ -308,8 +316,24 @@ class JobScript(object):
                                     if str(self.options['monitorJob']).lower() == "true":
                                         # We need to monitor the job and check for it's completion
                                         values = self.monitor(jobId, scheduler, self.environment, schedulerName)
+                                        #Transfer output files to local if option is selected
+                                        ### ********************** ############
+                                        # try:
+                                        #     if str(self.options['getOutput']).lower() == "true":
+                                        #         # need ssh key key = 
+                                        #         # need to scp files back
+                                        #         # need jobid
+                                        #         # need file path
+                                        #         # need full command line to run locally
+                                        #         commandline = "scp -i " + str(keyPath) + " " + str(self.environment.userName) + "@" + str(ipAddress) + ":~/" + str(outputName) + " /Output/"
+                                        #         response = subprocess.check_output(commandline, shell=True)
+                                        # except Exception as e:
+                                        #     print "There was an error sending the output file back"
+                                        #     print e
 
                                         # The jobscript has been submitted and completed so we just return the values of the monitoring function
+                                        values['jobId'] = jobId
+                                        values['environment'] = self.environment
                                         return values
                                     else:
                                         # The user chose not to monitor the job so we declare success and move on to processing the next jobscript

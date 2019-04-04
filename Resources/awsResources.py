@@ -28,6 +28,13 @@ class AwsResources(Resource):
             client = session.create_client(str(service), region_name=str(self.region))
             return {"status": "success", "payload": client}
         except Exception as e:
+            print "Trying second method of getting a Botocore Session"
+            pass
+        try:
+            session = botocore.session.get_session()
+            client = session.create_client(str(service), region_name=str(self.region))
+            return {"status": "success", "payload": client}
+        except Exception as e:
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a Botocore session to" + str(service) + ".", "traceback": ''.join(traceback.format_exc())}}
 
     def createControlResources(self, templateLocation, resourceName, options):
@@ -115,13 +122,16 @@ class AwsResources(Resource):
                     resourceStatusReason = ""
                 if resourceType == 'AWS::CloudFormation::Stack':
                     status = resourceStatus
-
+                print "ResourceStatusReason 1 is "
+                print resourceStatusReason
                 # If waiting for create we need to monitor the state of the Stack, if waiting for deletion we need to wait until the stack is gone
                 if stateToFind == "creation":
                     if status == "CREATE_COMPLETE":
                         print "The Cloud Formation Stack has been created successfully."
                         return {"status": "success", "payload": "The Cloud Formation Stack has been created successfully."}
                     elif status == "ROLLBACK_COMPLETE" or status == "ROLLBACK_FAILED":
+                        print "ResourceStatusReason 2 is "
+                        print resourceStatusReason
                         return {"status": "error", "payload": {"error": "The Cloud Formation Template failed to launch properly. The error associated with the Cloud Formation Template is: " + str(resourceStatusReason), "traceback": ''.join(traceback.format_stack())}}
                     elif status == "CREATE_FAILED":
                         return {"status": "error", "payload": {"error": "The Cloud Formation Template failed to launch properly. The error associated with the Cloud Formation Template is: " + str(resourceStatusReason), "traceback": ''.join(traceback.format_stack())}}

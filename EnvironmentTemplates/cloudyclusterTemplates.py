@@ -39,20 +39,20 @@ class CloudyClusterTemplate(EnvironmentTemplate):
         except Exception as e:
             return {"status": "error", "payload": {"error": "Unable to get the template specified.", "traceback": ''.join(traceback.format_exc())}}
 
-    def create(self):
+    def create(self, cloudType):
         # Add the generic objects to the template and add the reminders to get default values from the user
         newTemplate = {'clusterError': 'none', 'clusterNumber': 1, 'RecType': 'Cluster', 'clusterSpunUp': 'false', 'rollback': {'status': 'none'}, 'ofa': '0.0.0.0/0', 'completed': 'true', 'hash_key': "<<CLUSTER_UUID>>", 'name': "<<CLUSTER_UUID>>", 'cid': "<<CLUSTER_UUID>>", 'pagesViewed': {'welcome': 'true', 'advanced': 'true', 'finalReview': 'true'}, 'clusterAction': {'status': 'none'}, 'roadTraveled': ['welcome', 'advanced', 'finalReview'], "clusterName": "<<CLUSTER_NAME>>", 'schedulers': [], 's3': [], 'efs': [], 'computeGroups': [], 'webDavs': [], 'workingGroups': [], 'ccVersion': 'Current Version', "sharedHomeDirEnabled": "false", "Region": "<<REGION>>", "k": "<<KEY_NAME>>", "instanceAvailabilityZone": "<<INSTANCE_AVAILABILITY_ZONE>>"}
 
         #Instance specific objects so that they can be referenced separately
         validNatParameters = {"instanceType": "nit", "accessFrom": "naf", "volumeType": "VolumeType"}
 
-        validClusterParameters = {"keyname": "k", "vpccidr": "vc", "az": "instanceAvailabilityZone", "region": "Region"}
+        validClusterParameters = {"keyname": "k", "vpccidr": "vc", "az": "instanceAvailabilityZone", "region": "Region", "createAllEFSMountPoints": "createAllEFSMountPoints"}
 
         validSchedulerParameters = {"instanceType": "sit", "ccq": "scalingType", "volumeType": "VolumeType", "name": "schedName", "type": "schedType"}
 
         validWebDavParameters = {"instanceType": "wdit", "name": "accessName", "volumeType": "VolumeType"}
 
-        validFilesystemParameters = {"numberOfInstances": "ofs", "port": "op", "name": "fn", "filesystemId": "fid", "numberOfStandbyInstances": "fo", "filesystemSizeGB": "ebs", "storageVolumesPerInstance": "ebsNumber", "instanceType": "ofit", "volumeType": "VolumeType", "inputOutputOperationsPerSecond": 'iops', "encrypted": "enableEBSEncryption"}
+        validFilesystemParameters = {"numberOfInstances": "ofs", "port": "op", "name": "fn", "filesystemId": "fid", "numberOfStandbyInstances": "fo", "filesystemSizeGB": "ebs", "storageVolumesPerInstance": "ebsNumber", "instanceType": "ofit", "volumeType": "VolumeType", "inputOutputOperationsPerSecond": 'iops', "encrypted": "enableEBSEncryption", "storageVolumeType": "storageVolumeType", "orangeFSIops": "orangeFSIops", "instanceIops": "instanceIops"}
 
         validComputeGroupParameters = {"numberOfInstances": "wfs", "instanceType": "wit", "name": "cgn", "volumeType": "VolumeType"}
 
@@ -72,11 +72,15 @@ class CloudyClusterTemplate(EnvironmentTemplate):
         requiredEfsParameters = {"type"}
         requiredS3Parameters = {"name"}
 
-        # Bulid the variable map of all the objects
+        # Build the variable map of all the objects
         variableMap = {"Cluster": validClusterParameters, "schedulers": validSchedulerParameters, "webDavs":  validWebDavParameters, "workingGroups": validFilesystemParameters, "computeGroups": validComputeGroupParameters, "efs": validEfsParameters, "s3": validS3Parameters, "nat": validNatParameters}
 
         # Valid categories
-        validCategories = ["scheduler", "login", "computegroup", "filesystem", "nat", "efs", "s3", "Cluster"]
+        validCategories = ["scheduler", "login", "computegroup", "filesystem", "nat", "efs", "s3", "Cluster", "createAllEFSMountPoints"]
+
+        # Check to see if createAllEFSMountpoints exists.  Needs to default to a string lower case false for GCP. 
+        if "createAllEFSMountPoints" not in self.parameters:
+            self.parameters['createAllEFSMountPoints'] = "false"
 
         # Here we need to take in the parameters specified in the ccAutomaton and parse them into the right format for Environment creation
         for param in self.parameters:
@@ -144,7 +148,12 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 newTemplate[thing] = fixedObj[thing]
 
                         if "VolumeType" not in newTemplate:
-                            newTemplate['VolumeType'] = "SSD"
+                            if str(cloudType).lower() == "aws":
+                                #newTemplate['VolumeType'] = "SSD"
+                                newTemplate['VolumeType'] = "SSD"
+                            elif str(cloudType).lower() == "gcp":
+                                #newTemplate['VolumeType'] = "pd-ssd"
+                                newTemplate['VolumeType'] = "pd-ssd"
                     else:
                         # If the attribute is a Cluster attribute then it is on the top level as well
                         if param in variableMap[category]:
@@ -224,11 +233,26 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 sys.exit(0)
 
                     if len(fixedObj) > 0:
-                        # Set the default volume type to be SSD for these types if not specified
+                        # Set the default volume type to be SSD(AWS) or pd-ssd(GCP) for these types if not specified
                         if category == "schedulers" or category == "computeGroups" or category == "workingGroups" or category == "webDavs":
                             if "VolumeType" not in fixedObj:
-                                fixedObj['VolumeType'] = "SSD"
-
+                                if str(cloudType).lower() == "aws":
+                                    fixedObj['VolumeType'] = "SSD"
+                                elif str(cloudType).lower() == "gcp":
+                                    fixedObj['VolumeType'] = "pd-ssd"
+                            # Making sure GCP is getting the proper name for the ssd if someone forgets
+                            if "VolumeType" in fixedObj and str(cloudType) == "gcp":
+                                if fixedObj['VolumeType'] == "SSD":
+                                    fixedObj['VolumeType'] = "pd-ssd"
+                        if category == "workingGroups":
+                            if "storageVolumeType" not in fixedObj:
+                                if str(cloudType).lower() == "aws":
+                                    fixedObj['storageVolumeType'] = "SSD"
+                                elif str(cloudType).lower() == "gcp":
+                                    fixedObj['storageVolumeType'] = "pd-ssd"
+                            if "storageVolumeType" in fixedObj and str(cloudType) == "gcp":
+                                if fixedObj['storageVolumeType'] == "SSD":
+                                    fixedObj['storageVolumeType'] = "pd-ssd"
                         # Populate defaults for the different categories
                         if category == "efs":
                             fixedObj['filesystemId'] = "pending"
@@ -278,17 +302,22 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                             if "op" not in fixedObj:
                                 fixedObj['op'] = 3334
                             if 'fo' not in fixedObj:
-                                fixedObj['fo'] = int(math.ceil(0.10*float(fixedObj['ofs'])))
+                                if str(cloudType).lower() == "aws":
+                                    #fixedObj['fo'] = int(math.ceil(0.10*float(fixedObj['ofs'])))
+                                    fixedObj['fo'] = 0
+                                elif str(cloudType).lower() == "gcp":
+                                    fixedObj['fo'] = 0
                             if 'fid' not in fixedObj:
                                 filesystemGeneratedId = ""
                                 fsidNums = [randint(0, 9) for p in range(0, 8)]
                                 for digit in fsidNums:
                                   filesystemGeneratedId += str(digit)
                                 fixedObj['fid'] = filesystemGeneratedId
-                            if 'inputOutputOperationsPerSecond' not in fixedObj:
-                                fixedObj['iops'] = 0
+                            if 'inputOutputOperationsPerSecond' not in fixedObj or 'instanceIops' not in fixedObj:
+                                #fixedObj['iops'] = 0
+                                fixedObj['instanceIops'] = 0
                             if "enableEBSEncryption" not in fixedObj:
-                                fixedObj['enableEBSEncryption'] = False
+                                fixedObj['enableEBSEncryption'] = 'false'  #Does this need to be a string lower false? JCE TODO
 
                         if category == "s3":
                             fixedObj['clusterName'] = "<<CLUSTER_NAME>>"
@@ -298,6 +327,9 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 fixedObj['s3Encryption'] = "false"
                             fixedObj['s3NameDisplay'] = str(fixedObj['s3Name'])
 
+                        if category == "createAllEFSMountPoints":
+                            if fixedObj['createAllEFSMountPoints'] != "true" or fixedObj['createAllEFSMountpoints'] != "false":
+                                fixedObj['createAllEFSMountPoints'] = "false"
                         # Add the fixed object to the template
                         newTemplate[category].append(fixedObj)
             except Exception as e:
@@ -371,7 +403,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error encountered when attempting to delete the " + str(self.templateName) + " file.", "traceback": ''.join(traceback.format_exc())}}
 
-    def populate(self, environmentName):
+    def populate(self, environmentName, cloudType):
         clusterUuid = str(uuid.uuid4())
         clusterNameUuid = str(clusterUuid)[:4]
         part1 = uuid.uuid4()
@@ -420,10 +452,13 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                 generatedCidrNumber = randint(0, 255)
                 generatedVpcCidr = '10.' + str(generatedCidrNumber) + '.0.0/16'
                 self.template['vc'] = str(generatedVpcCidr)
-
-                if str(self.template["Region"]) not in str(self.template['instanceAvailabilityZone']):
-                    return {"status": "error", "payload": "The Availability Zone specified in the Configuration file is not located within the Region specified in the Configuration file. Please fix your Configuration file so that the Availability Zone is located in the Region specified and try again."}
-                else:
+                if str(cloudType).lower() == "aws":
+                    if str(self.template["Region"]) not in str(self.template['instanceAvailabilityZone']):
+                        return {"status": "error", "payload": "The Availability Zone specified in the Configuration file is not located within the Region specified in the Configuration file. Please fix your Configuration file so that the Availability Zone is located in the Region specified and try again."}
+                    else:
+                        return {"status": "success", "payload": {"template": self.template, "environmentName": clusterName}}
+                elif str(cloudType).lower() == "gcp":
+                    #TODO Figure out a way to implement a check
                     return {"status": "success", "payload": {"template": self.template, "environmentName": clusterName}}
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was a problem encountered when trying to populate the template from the values provided in the Configuration file.", "traceback": ''.join(traceback.format_exc())}}
