@@ -17,7 +17,7 @@ def setServer(sender, smtp, password):
     except Exception as e:
         return{"message": str(e), "server": None, "status": "fail"}
 
-def sendMessage(sender, smtp, password, reciever, missive):
+def sendMessage(sender, smtp, password, reciever, missive, server):
     try:
         msg = MIMEMultipart()
         msg['From'] = sender
@@ -44,7 +44,7 @@ def main(sender, smtp, password, reciever, missive):
         server.quit()
         return {"message": str(e), "status": "fail"}
     try:
-        response = sendMessage(sender, smtp, password, reciever, missive)
+        response = sendMessage(sender, smtp, password, reciever, missive, server)
     except Exception as e:
         print "There was an error sending the email"
         print str(e)
