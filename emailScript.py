@@ -17,7 +17,7 @@ def setServer(sender, smtp, password):
     except Exception as e:
         return{"message": str(e), "server": None, "status": "fail"}
 
-def sendMessage(sender, smtp, password, reciever, missive, server):
+def sendMessage(sender, smtp, password, receiver, missive, server):
     try:
         msg = MIMEMultipart()
         msg['From'] = sender
@@ -28,12 +28,12 @@ def sendMessage(sender, smtp, password, reciever, missive, server):
         except:
             body = "Error sending message."
         msg.attach(MIMEText(body, 'plain'))
-        server.sendmail(sender, reciever, msg.as_string())
+        server.sendmail(sender, receiver, msg.as_string())
         server.quit()
     except Exception as e:
         return {"status": "fail", "message": str(e)}
 
-def main(sender, smtp, password, reciever, missive):
+def main(sender, smtp, password, receiver, missive):
     try:
         response = setServer(sender, smtp, password)
         print response['message']
@@ -44,7 +44,7 @@ def main(sender, smtp, password, reciever, missive):
         server.quit()
         return {"message": str(e), "status": "fail"}
     try:
-        response = sendMessage(sender, smtp, password, reciever, missive, server)
+        response = sendMessage(sender, smtp, password, receiver, missive, server)
     except Exception as e:
         print "There was an error sending the email"
         print str(e)
