@@ -76,8 +76,6 @@ class CloudyCluster(Environment):
                 return {"status": values['status'], "payload": sessionCookies}
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error trying to validate the Control Instance.", "traceback": ''.join(traceback.format_exc())}}
-            
-
 
     def createControl(self, templateLocation, resourceName):
         resourceClass = None
@@ -757,8 +755,12 @@ class CloudyCluster(Environment):
                 utilityResults = utilityResponse.content
                 utilityResults = json.loads(utilityResults)['Utility']['Utility']['instances']
                 for instance in utilityResults:
-                    if str(instance)[:2] == "i-":
-                        if utilityResults[instance]["RecType"] == "WebDavNode":
+                    if str(self.cloudType).lower() == "aws":
+                        if str(instance)[:2] == "i-":
+                            if utilityResults[instance]["RecType"] == "WebDavNode":
+                                loginDomainName = utilityResults[instance]['domainName']
+                    elif str(self.cloudType).lower() == "gcp":
+                        if "-wd-" in str(instance):
                             loginDomainName = utilityResults[instance]['domainName']
 
                 if loginDomainName is None:

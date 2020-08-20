@@ -48,7 +48,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
 
         validClusterParameters = {"keyname": "k", "vpccidr": "vc", "az": "instanceAvailabilityZone", "region": "Region", "createAllEFSMountPoints": "createAllEFSMountPoints"}
 
-        validSchedulerParameters = {"instanceType": "sit", "ccq": "scalingType", "volumeType": "VolumeType", "name": "schedName", "type": "schedType"}
+        validSchedulerParameters = {"instanceType": "sit", "ccq": "scalingType", "volumeType": "VolumeType", "name": "schedName", "type": "schedType", "schedAllocationType": "schedAllocationType"}
 
         validWebDavParameters = {"instanceType": "wdit", "name": "accessName", "volumeType": "VolumeType"}
 

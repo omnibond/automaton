@@ -14,10 +14,10 @@ class Resource(object):
         self.profile = profile
 
     def createControlResources(self, **kwargs):
-         return {"status": "error", "payload": "Base Resource Class method createControlResources not implemented for " + str(self.cloudType) + "."}
+        return {"status": "error", "payload": "Base Resource Class method createControlResources not implemented for " + str(self.cloudType) + "."}
 
     def deleteControlResources(self, **kwargs):
-         return {"status": "error", "payload": "Base Resource Class method deleteControlResources not implemented for " + str(self.cloudType) + "."}
+        return {"status": "error", "payload": "Base Resource Class method deleteControlResources not implemented for " + str(self.cloudType) + "."}
 
     def monitorControlResources(self, **kwargs):
         return {"status": "error", "payload": "Base Resource Class method monitorControlResources not implemented for " + str(self.cloudType) + "."}

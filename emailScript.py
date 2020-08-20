@@ -4,6 +4,7 @@ import smtplib
 from email.MIMEText import MIMEText
 from email.MIMEMultipart import MIMEMultipart
 
+
 def setServer(sender, smtp, password):
     try:
         server = smtplib.SMTP(smtp)
@@ -16,6 +17,7 @@ def setServer(sender, smtp, password):
         return {"message": message, "server": server, "status": "success"}
     except Exception as e:
         return{"message": str(e), "server": None, "status": "fail"}
+
 
 def sendMessage(sender, smtp, password, receiver, missive, server):
     try:
@@ -32,6 +34,7 @@ def sendMessage(sender, smtp, password, receiver, missive, server):
         server.quit()
     except Exception as e:
         return {"status": "fail", "message": str(e)}
+
 
 def main(sender, smtp, password, receiver, missive):
     try:

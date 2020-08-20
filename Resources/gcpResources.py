@@ -4,8 +4,7 @@ import traceback
 import sys
 from resources import Resource 
 import googleapiclient.discovery
-#from google.cloud import datastore
- #compute = googleapiclient.discovery.build('compute', 'v1')
+
 
 class GcpResources(Resource):
     def __init__(self, **kwargs):
@@ -14,10 +13,10 @@ class GcpResources(Resource):
     def createClient(self, service, version):
         # Creating a GCP api client
         try:
-            compute = googleapiclient.discovery.build(service, version)
+            compute = googleapiclient.discovery.build(service, version, cache_discovery=False)
             return {"status": "success", "payload": compute}
         except Exception as e:
-            return {"status": "error", "payload": {"error": "There was an exception encoutered when trying to obtain a google api session.", "traceback": ''.join(traceback.format_exc())}}
+            return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a google api session.", "traceback": ''.join(traceback.format_exc())}}
 
     def createControlResources(self, templateLocation, resourceName, options):
         # Launch a Control Node through gcp and return the id
@@ -39,13 +38,16 @@ class GcpResources(Resource):
             return{"status": "error"}
         else:
             client = response['payload']
+
+        counter = 0
         while True:
             result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=str(request['name'])).execute()
             if result['status'] == 'DONE':
-                print "GCP Control Node has been Created"
+                print "GCP Control Node has been created"
                 if "error" in result:
                     return {"status": "error", "payload": {"error": str(result['error']), "traceback": ''.join(traceback.format_stack())}}
                 else:
+                    print "Obtaining the IP address from the " + str(resourceName) + " Control Resources."
                     time.sleep(10)
                     response = self.createClient(service, version)
                     client = response['payload']
@@ -54,7 +56,10 @@ class GcpResources(Resource):
                     remoteIp = result['items'][0]['networkInterfaces'][0]['accessConfigs'][0]['natIP']
                     #return {"status": "success", "payload": request['name'], "controlIP": str(remoteIp)}
                     return {"status": "success", "payload": str(remoteIp)}
-            time.sleep(5)
+            else:
+                print "You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state."
+                counter += 1
+            time.sleep(60)
 
     #####Delete the Google Cloud control node with the web route.  
     def deleteControlResources(self, resourceName, options):
@@ -66,10 +71,10 @@ class GcpResources(Resource):
         else:
             client = response['payload']
         params = {}
-        instance = client.instances().delete(project=self.project, zone=self.zone, instance=self.instanceName)
+        instance = client.instances().delete(project=options['projectid'], zone=options['zone'], instance=resourceName)
         request = instance.execute()
         while True:
-            result = client.zoneOperations().get(project=self.projectId, zone=zone, operation=request['name'])
+            result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=request['name'])
             if result['status'] == 'DONE':
                 print "GCP Control Node has been Deleted"
                 if "error" in result:
@@ -80,6 +85,7 @@ class GcpResources(Resource):
     def makeBody(self, resourceName, options):
         with open(str(options['pubkeypath']), 'rb') as f:
             tempsshkey = str(options['sshkeyuser'])+':'+f.read()       
+
         autoDelete = "true"
         machineType = "zones/%s/machineTypes/%s" % (options['zone'], options['instancetype'])
         body = {
@@ -108,7 +114,7 @@ class GcpResources(Resource):
             }],
 
             'serviceAccounts': [{
-                'email': os.environ['SERVICE_ACCOUNT_EMAIL'],
+                'email': options['serviceaccountemail'],
                 'scopes': [
                     'https://www.googleapis.com/auth/devstorage.read_write',
                     "https://www.googleapis.com/auth/datastore",

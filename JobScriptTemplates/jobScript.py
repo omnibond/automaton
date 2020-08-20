@@ -105,17 +105,16 @@ class JobScript(object):
             filepath = kwargs['filepath']
             userName = kwargs['userName']
             password = kwargs['password']
-	    print kwargs
+            print kwargs
             if '.sh' not in filename:
                 filename = str(filename)+'.sh'
             url = "https://"+str(dns)+str(sharedDir)+"/"+str(filename)
-	    print url
+            print url
             with open(str(filepath), 'rb') as f:
                 file = f.read()
             response = requests.request('PUT', url, auth=(userName, password), allow_redirects=False, data=file)
             print response.text
         except Exception as e:
-	 
             print "Error uploading file with webdav protocol"
             print e
             pass
@@ -158,8 +157,10 @@ class JobScript(object):
 
     def monitor(self, jobId, scheduler, environment, schedulerName):
         jobCompleted = False
-        print "Now monitoring the status of the CCQ job. Your jobID is "+ str(jobId)
+        timeElapsed = 0
+        print "Now monitoring the status of the CCQ job. Your jobID is " + str(jobId)
         while not jobCompleted:
+            print "It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched."
             values = scheduler.getJobStatus(environment, jobId, schedulerName, self.loginDNS)
             if values['status'] != "success":
                 return values
@@ -175,9 +176,11 @@ class JobScript(object):
                         return {"status": "success", "payload": "The CCQ job has successfully completed."}
                     else:
                         print "The job is still creating the requested resources, waiting two minutes before checking the status again."
+                        timeElapsed += 120
                         time.sleep(120)
                 else:
                     print "The job is still running, waiting one minute before checking the status again."
+                    timeElapsed += 60
                     time.sleep(60)
 
     def upload(self):
@@ -308,7 +311,7 @@ class JobScript(object):
                                     return values
                                 else:
                                     # We have successfully submitted the job, now we need to monitor the job if specified by the user
-				    print values['payload']
+                                    print values['payload']
                                     jobId = values['payload']['jobId']
                                     schedulerName = values['payload']['schedulerName']
 

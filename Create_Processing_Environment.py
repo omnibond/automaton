@@ -15,6 +15,9 @@ import traceback
 import json
 from random import randint
 import time
+
+import oauth2client.client
+
 import emailScript as tidings
 import ConfigParser
 
@@ -76,9 +79,10 @@ def main():
         import boto3
         import paramiko
         import requests
+        import googleapiclient
     except Exception as e:
-        print "The use of ccAutomaton requires the botocore and boto3 Python libraries to operate properly. These can be installed using pip via the following commands:"
-        print "pip install botocore boto3"
+        print "The use of ccAutomaton requires the botocore, boto3, paramiko, requests, and googleapiclient Python libraries to operate properly. These can be installed using pip via the following commands:"
+        print "pip install botocore boto3 google-api-python-client paramiko requests"
         print "If you do not have pip installed it can be installed on most Linux Distributions as the python-pip package."
         print "Please install the required libraries and try again."
         sys.exit(0)
@@ -119,6 +123,7 @@ def main():
         cloudType = cloudType[0].upper() + cloudType[1:]
         generalParameters = configurationFileParameters['General']
     except Exception as e:
+        print ''.join(traceback.format_exc(e))
         print "Unable to find the requested cloud type in the configuration file specified. Please check the file and be sure that there is a cloudtype field in the general section and try again."
         sys.exit(0)
 
@@ -221,7 +226,6 @@ def main():
 
     # Need to create different environment objects depending on what we are running.
     if "cc" in stagesToRun:
-       
         # Check and see if the requested environment/cloud type is configured in the conf file
         try:
             controlParameters = configurationFileParameters[str(environmentType) + str(cloudType)]
@@ -258,7 +262,7 @@ def main():
                 jobsToRun = configurationFileParameters['Computation']
                 jobList = []
                 for x in jobsToRun:
-                    jobList.append({x:jobsToRun[x]})
+                    jobList.append({x: jobsToRun[x]})
                 jobList = sorted(jobList)
                 #print "jobsToRun is "
                 #print jobsToRun
@@ -319,7 +323,7 @@ def main():
             f.write("controlResources="+str(resourceName)+"\n")
             f.close()
 
-        ### Had to make an alternate path right here for aws and gcp.  The AWS path creates a Cloud Formation Stack using a CFT.  Currently, we don't use anything anagalous to the CFT with GCP, therefore we only need to summon a Control Node.
+        # Had to make an alternate path right here for aws and gcp.  The AWS path creates a Cloud Formation Stack using a CFT.  Currently, we don't use anything anagalous to the CFT with GCP, therefore we only need to summon a Control Node.
 
         if str(cloudType).lower() == "aws":
             print "Now creating the Control Resources. The Control Resources will be named: " + str(resourceName)
@@ -362,7 +366,7 @@ def main():
                 if emailParams:
                     missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                     response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(0)                    
+                sys.exit(0)
 
     if "ce" in stagesToRun:
         print "Getting session to Control Resource."
@@ -397,7 +401,7 @@ def main():
     if "rj" in stagesToRun:
         print "Getting session to Control Resource."
         if environment.sessionCookies is None:
-           environment.getSession()
+            environment.getSession()
 
         if environmentName is None or str(environmentName) == "":
             print "In order to execute job scripts or workflows on the Environment properly the full Environment name is required. This looks like <environment_name>-XXXX, please specify the full Environment name using the -en commandline argument or by specifying the environmentName field in the General section of the configuration file."
@@ -418,12 +422,46 @@ def main():
                         print "The configuration of the workflow is not in a valid format. Please check the format and try again."
                         sys.exit(0)
                     workflowType = tempObj['type']
+
+                    # Create the scheduler object that can be used by the workflows
+                    try:
+                        schedulerModule = __import__(str(tempObj['options']['schedulerType']).lower())
+                        # Get the actual class that we need to instantiate (ex: from cloudycluster import CloudyCluster)
+                        schedulerClass = getattr(schedulerModule, str(tempObj['options']['schedulerType'][0].upper() + tempObj['options']['schedulerType'][1:]))
+                        kwargs = {"schedType": tempObj['options']['schedulerType']}
+                        scheduler = schedulerClass(**kwargs)
+                    except Exception as e:
+                        print "Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['schedulerType']) + ". Please make sure the schedulerType is specified properly."
+                        print "The traceback is: " + ''.join(traceback.format_exc())
+                        sys.exit(0)
+
+                    # Create CCQ scheduler object if requsted by workflow
+                    ccqScheduler = None
+                    if str(tempObj['options']['useCCQ']).lower() == "true":
+                        schedType = "ccq"
+                        try:
+                            ccqSchedulerModule = __import__(schedType)
+                            # Get the actual class that we need to instantiate (ex: from cloudycluster import CloudyCluster)
+                            ccqSchedulerClass = getattr(ccqSchedulerModule, str(schedType[0].upper() + schedType[1:]))
+                            kwargs = {"schedType": schedType}
+                            ccqScheduler = ccqSchedulerClass(**kwargs)
+                        except Exception as e:
+                            print "Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['options']['schedulerType']) + ". Please make sure the schedulerType is specified properly."
+                            print "The traceback is: " + ''.join(traceback.format_exc())
+                            sys.exit(0)
+
                     # It is a workflow that we will run via the script in the WorkflowTemplates directory
-                    kwargs = {"name": tempObj['name'], "wfType": workflowType, "options": tempObj['options'], "schedulerType": tempObj['schedulerType']}
-                    module = __import__(str(workflowType))
-                    workflowClass = getattr(module, str(workflowType[0].upper() + workflowType[1:]))
-                    workflow = workflowClass(**kwargs)
-                    values = workflow.run(environment)
+                    kwargs = {"name": tempObj['name'], "wfType": workflowType, "options": tempObj['options'], "schedulerType": tempObj['options']['schedulerType'], "environment": environment, "scheduler": scheduler, "ccq": ccqScheduler}
+                    try:
+                        module = __import__(str(workflowType))
+                        workflowClass = getattr(module, str(workflowType[0].upper() + workflowType[1:]))
+                        workflow = workflowClass(**kwargs)
+                    except Exception as e:
+                        print "Unable to create an instance of the workflow class for the workflow type: " + str(workflowType) + ". Please make sure the workflowType is specified properly."
+                        print "The traceback is: " + ''.join(traceback.format_exc())
+                        sys.exit(0)
+
+                    values = workflow.run()
                     if values['status'] != "success":
                         moosage = "The execution of the workflow: " + str(jobToRun) + " failed."; print moosage
                         try:
@@ -438,7 +476,8 @@ def main():
                             missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                             response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
-                        values = workflow.monitor()
+                        # The return from the run() method should provide a payload field that provides the arguments for the monitor method
+                        values = workflow.monitor(**values['payload'])
                         if values['status'] != "success":
                             moosage = "The monitoring of the workflow: " + str(jobToRun) + " failed."; print moosage
                             try:
@@ -590,7 +629,7 @@ def main():
                 sys.exit(0)
             else:
                 print "The Environment named " + str(environmentName) + " have been successfully deleted."
-          
+
         if environment.controlResourceName:
             print "Deleting the Control Resources named " + str(environment.controlResourceName) + "."
             values = environment.deleteControl()

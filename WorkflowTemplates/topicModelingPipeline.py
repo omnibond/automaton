@@ -10,7 +10,6 @@
 import os
 import sys
 import traceback
-import hashlib
 import time
 from datetime import datetime
 from workflow import Workflow
@@ -36,7 +35,7 @@ class TopicModelingPipeline(Workflow):
         except Exception as e:
             return {"status": "error", "payload": {"error": "Unable to create an instance of the resource class for the schedulerType: " + str(self.schedulerType) + ". Please make sure the schedulerType is specified properly.", "traceback": ''.join(traceback.format_exc())}}
 
-    def run(self, environment):
+    def run(self):
         startTime = time.time()
         submitTime = str(datetime.now()).replace(":", "-").replace(".", "-").replace(" ", "-")
         splitSubmitTime = submitTime.split("-")
@@ -76,7 +75,7 @@ class TopicModelingPipeline(Workflow):
                     except Exception as e:
                         return {"status": "error", "payload": {"error": "Unable to find the scheduler to use which is required for this workflow. Please make sure that there is an schedulerToUse field in the workflow configuration object and try again.", "traceback": ''.join(traceback.format_stack())}}
 
-                if str(environment.environmentType) != "CloudyCluster":
+                if str(self.environment.environmentType) != "CloudyCluster":
                     return {"status": "error", "payload": {"error": "In order to utilize CCQ you must be using the CloudyCluster environment type. Please check the -et argument specified and try again.", "traceback": ''.join(traceback.format_stack())}}
 
                 try:
@@ -155,20 +154,20 @@ class TopicModelingPipeline(Workflow):
                             else:
                                 ccOptionsParsed = values['payload']['ccOptionsParsed']
                                 jobMD5Hash = values['payload']['jobMD5Hash']
-                                values = environment.getApiKey()
+                                values = self.environment.getApiKey()
                                 if values['status'] != "success":
                                     return {"status": "error", "payload": values['payload']}
                                 else:
                                     apiKey = values['payload']
                                     # This only works for CC but we can only use CCQ if we are using CC so that's ok
-                                    values = environment.getLoginInstanceDomainName()
+                                    values = self.environment.getLoginInstanceDomainName()
                                     if values['status'] != "success":
                                         return {"status": "error", "payload": values['payload']}
                                     else:
                                         loginDomain = values['payload']
                                         print "Made it to submit"
                                         jobObj = {"jobScriptText": jobScriptText, "ccOptionsParsed": ccOptionsParsed, "jobMD5Hash": jobMD5Hash, "jobScriptLocation": jobScriptLocation + str(jobName), "jobName": str(jobName)}
-                                        values = ccqScheduler.submitJob(environment.sessionCookies, jobObj, apiKey, loginDomain)
+                                        values = ccqScheduler.submitJob(self.environment.sessionCookies, jobObj, apiKey, loginDomain)
                                         if values['status'] != "success":
                                             return {"status": "error", "payload": values['payload']}
                                         else:
@@ -179,7 +178,7 @@ class TopicModelingPipeline(Workflow):
                                             print "Now monitoring the status of the CCQ job."
                                             resourceTime = None
                                             while not jobCompleted:
-                                                values = environment.monitorJob(jobId, apiKey, self.options['schedulerToUse'], loginDomain, False, jobPrefixString, self.schedulerType)
+                                                values = self.environment.monitorJob(jobId, apiKey, self.options['schedulerToUse'], loginDomain, False, jobPrefixString, self.schedulerType)
                                                 if values['status'] != "success":
                                                     return {"status": "error", "payload": values['payload']}
                                                 else:
@@ -211,7 +210,7 @@ class TopicModelingPipeline(Workflow):
                                             workflowJobsCompleted = False
                                             while not workflowJobsCompleted:
                                                 time.sleep(30)
-                                                values = environment.getJobState("all", apiKey, self.options['schedulerToUse'], loginDomain, True, jobPrefixString, self.schedulerType)
+                                                values = self.environment.getJobState("all", apiKey, self.options['schedulerToUse'], loginDomain, True, jobPrefixString, self.schedulerType)
                                                 if values['status'] != "success":
                                                     return {"status": "error", "payload": values['payload']}
                                                 else:
@@ -223,7 +222,7 @@ class TopicModelingPipeline(Workflow):
                                             endTime = time.time()
                                             tempTime = endTime - startTime
                                             print "Total time elapsed is: " + str(tempTime) + " seconds."
-                                            return {"status": "success", "payload": "The workflow has successfully completed."}
+                                            return {"status": "success", "payload": {}}
                 except Exception as e:
                     print e
                     # Do not use CCQ and just submit the workflow to the local scheduler

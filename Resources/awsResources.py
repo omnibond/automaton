@@ -18,6 +18,7 @@ import boto3
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+
 class AwsResources(Resource):
     def __init__(self, **kwargs):
         super(AwsResources, self).__init__(**kwargs)

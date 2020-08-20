@@ -64,10 +64,33 @@ class Ccq(Scheduler):
             else:
                 return {"status": "error", "payload": {"error": jobOutput['payload'], "traceback": ''.join(traceback.format_stack())}}
 
-    def generateCcqSubmitParameters(self, numNodes, numCores, requestedInstanceType, useSpot, spotPrice, networkTypeRequested, schedulerToUse, schedType, jobScriptText, jobScriptLocation, useSpotFleet, spotFleetType, spotFleetTotalSize, terminateInstantly, skipProvisioning, submitInstantly, spotFleetWeights):
+    def generateCcqSubmitParameters(self, environment, jobWorkDir, jobScriptText, options):
         # We have to build the object that the ccqsub utility would have built for us. This allows for the dynamic creation of the instances.
         # Set up the CCQ parameters required to submit the job.
-        ccOptionsParsed = {"numberOfInstancesRequested": str(numNodes),  "numCpusRequested": str(numCores), "wallTimeRequested": "None", "stdoutFileLocation": "default", "stderrFileLocation": "default", "combineStderrAndStdout": "None", "copyEnvironment": "None", "eventNotification": "None", "mailingAddress": "None", "jobRerunable": "None", "memoryRequested": str(1000), "accountToCharge": "None", "jobBeginTime": "None", "jobArrays": "None", "useSpot": str(useSpot), "spotPrice": str(spotPrice), "requestedInstanceType": str(requestedInstanceType), "networkTypeRequested": str(networkTypeRequested), "optimizationChoice": "cost",  "pathToExecutable": "None", "criteriaPriority": "mcn", "schedulerToUse": str(schedulerToUse), "schedType": str(schedType), "volumeType": "ssd", "certLength": 1, "jobWorkDir": str(jobScriptLocation), "justPrice": "false", "ccqHubSubmission": "False", "useSpotFleet": str(useSpotFleet), "spotFleetTotalSize": spotFleetTotalSize, "spotFleetType": str(spotFleetType), "terminateInstantly": str(terminateInstantly), "skipProvisioning": str(skipProvisioning), "submitInstantly": str(submitInstantly), "spotFleetWeights": str(spotFleetWeights)}
+
+        if str(environment.cloudType).lower() == "gcp":
+            volumeType = "pd-standard"
+        elif str(environment.cloudType).lower() == "aws":
+            volumeType = "ssd"
+        else:
+            return {"status": "error", "payload": {"error": "Unable to determine the volume type for the environment type provided.", "traceback": ''.join(traceback.format_stack())}}
+
+        ccOptionsParsed = {"numberOfInstancesRequested": "1",  "numCpusRequested": "1", "wallTimeRequested": "None", "stdoutFileLocation": "default", "stderrFileLocation": "default", "combineStderrAndStdout": "None", "copyEnvironment": "None", "eventNotification": "None", "mailingAddress": "None", "jobRerunable": "None", "memoryRequested": "1000", "accountToCharge": "None", "jobBeginTime": "None", "jobArrays": "None", "useSpot": "no", "spotPrice": "None", "requestedInstanceType": "default", "networkTypeRequested": "default", "optimizationChoice": "cost",  "pathToExecutable": "None", "criteriaPriority": "mcn", "schedulerToUse": "default", "schedType": "default", "volumeType": str(volumeType), "certLength": "1", "jobWorkDir": str(jobWorkDir), "justPrice": "false", "ccqHubSubmission": "False", "useSpotFleet": "False", "spotFleetWeights": "None", "spotFleetTotalSize": "None", "spotFleetType": "lowestPrice", "terminateInstantly": "False", "skipProvisioning": "False", "submitInstantly": "False", "timeLimit": "None", "createPInstances": "False", "image": "None", "maxIdle": "5", "placementGroupName": "None", "useGpu": "False", "gpuType": "None", "usePreemptible": "False", "cpuPlatform": "None", "maintain": "False"}
+
+        for attribute in options.keys():
+            ccOptionsParsed[attribute] = str(options[attribute])
+
+        if str(ccOptionsParsed['requestedInstanceType']) != "default":
+            ccOptionsParsed['userSpecifiedInstanceType'] = "true"
+        else:
+            ccOptionsParsed['userSpecifiedInstanceType'] = "false"
+
+        if str(ccOptionsParsed["spotPrice"]).lower() != "none":
+            ccOptionsParsed['useSpot'] = "yes"
+
+        # See if the user specified a GPU configuration and if so set the gcpgpu flag to True
+        if str(ccOptionsParsed['gpuType']) != "None":
+            ccOptionsParsed['useGpu'] = True
 
         # ccq generates an MD5 Hash to determine if the job has been ran before, we need to generate that here
         jobScriptTextTrimmed = ''.join(jobScriptText.split())

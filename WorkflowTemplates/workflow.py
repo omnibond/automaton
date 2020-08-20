@@ -8,14 +8,17 @@
 
 
 class Workflow(object):
-    def __init__(self, name, wfType, options, schedulerType):
+    def __init__(self, name, wfType, options, schedulerType, environment, scheduler=None, ccq=None):
         self.name = name
         self.wfType = wfType
         self.options = options
         self.schedulerType = schedulerType
+        self.environment = environment
+        self.scheduler = scheduler
+        self.ccq = ccq
 
     def run(self, **kwargs):
-         return {"status": "error", "payload": "Base Workflow Class method run not implemented for " + str(self.wfType) + "."}
+        return {"status": "error", "payload": "Base Workflow Class method run not implemented for " + str(self.wfType) + "."}
 
     def monitor(self, **kwargs):
-         return {"status": "error", "payload": "Base Workflow Class method monitor not implemented for " + str(self.wfType) + "."}
+        return {"status": "error", "payload": "Base Workflow Class method monitor not implemented for " + str(self.wfType) + "."}

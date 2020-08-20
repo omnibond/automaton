@@ -20,11 +20,15 @@ class Slurm(Scheduler):
     def __init__(self, **kwargs):
         super(Slurm, self).__init__(**kwargs)
 
-    def generateParentJobScriptHeader(self, numNodes, numCores, wallTime):
+    def generateParentJobScriptHeader(self, numNodes=None, numCores=None, wallTime="2:00:00", tasksPerNode=None):
         # For the moment take out the -N because spot fleet we don't know how many we will have.
         # Also remove the --ntasks-per-node since we won't know how many the first instance to come up has.
         #jobScriptHeader = """#!/bin/bash\n#SBATCH -N """ + str(numNodes) + """\n#SBATCH --ntasks-per-node """ + str(numCores) + """\n#SBATCH --time=""" + str(wallTime) + """\n"""
         jobScriptHeader = """#!/bin/bash\n#SBATCH --time=""" + str(wallTime) + """\n"""
+
+        if tasksPerNode is not None:
+            jobScriptHeader += "#SBATCH --ntasks-per-node=" + str(tasksPerNode) + "\n"
+
         return {"status": "success", "payload": jobScriptHeader}
 
     def generateChildJobScriptHeader(self, numNodes, numCores, wallTime, jobPrefixString, sharedFilesystemPath):
