@@ -18,7 +18,7 @@ import time
 
 import oauth2client.client
 
-import emailScript as tidings
+#import emailScript as tidings
 import configparser
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/Schedulers"))
@@ -129,16 +129,16 @@ def main():
 
     # Check to see if email is enabled on job fails and cluster fails
     ###TODO Encrypt Password and use username as a key in a seperate file with utility to set it (KBW/JCE)
-    try:
-        emailParams = {}
-        emailParams['email'] = configurationFileParameters['General']['email']
-        emailParams['sender'] = configurationFileParameters['General']['sender']
-        emailParams['sendpw'] = configurationFileParameters['General']['sendpw']
-        emailParams['smtp'] = configurationFileParameters['General']['smtp']
-    except Exception as e:
-        print("Emails disabled\nNow continuing")
-        emailParams = None
-        pass
+    #try:
+    #    emailParams = {}
+    #    emailParams['email'] = configurationFileParameters['General']['email']
+    #    emailParams['sender'] = configurationFileParameters['General']['sender']
+    #    emailParams['sendpw'] = configurationFileParameters['General']['sendpw']
+    #    emailParams['smtp'] = configurationFileParameters['General']['smtp']
+    #except Exception as e:
+    
+    print("Emails disabled\nNow continuing")
+    emailParams = None
 
     # Get the profile to use for the resource creation (switches out which account to use)
     if profile is None:
@@ -339,9 +339,9 @@ def main():
                     traceb = values['payload']['traceback']; print(traceb)
                 except Exception as e:
                     traceb = "N/A"
-                if emailParams:
-                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                #if emailParams:
+                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                 sys.exit(0)
             else:
                 print("Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section.")
@@ -363,9 +363,9 @@ def main():
                     traceb = values['payload']['traceback']; print(traceb)
                 except Exception as e:
                     traceb = "N/A"
-                if emailParams:
-                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                #if emailParams:
+                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                 sys.exit(0)
 
     if "ce" in stagesToRun:
@@ -386,9 +386,9 @@ def main():
                 traceb = values['traceback']; print(traceb)
             except Exception as e:
                 traceb = "N/A"
-            if emailParams:
-                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+            #if emailParams:
+            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             sys.exit(0)
         else:
             print("Successfully finished creating the Environment named: " + str(environment.name) + ".")
@@ -472,9 +472,9 @@ def main():
                             traceb = values['payload']['traceback']; print(traceb)
                         except Exception as e:
                             traceb = "N/A"
-                        if emailParams:
-                            missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                            response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                        #if emailParams:
+                        #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                        #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
                         # The return from the run() method should provide a payload field that provides the arguments for the monitor method
                         values = workflow.monitor(**values['payload'])
@@ -488,9 +488,9 @@ def main():
                                 traceb = values['payload']['traceback']; print(traceb)
                             except Exception as e:
                                 traceb = "N/A"
-                            if emailParams:
-                                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                            #if emailParams:
+                            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
 
                 elif "jobscript" in jobToRun:
                     print("Running jobScript")
@@ -527,9 +527,9 @@ def main():
                             traceb = values['payload']['traceback']; print(traceb)
                         except Exception as e:
                             traceb = "N/A"
-                        if emailParams:
-                            missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                            response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                        #if emailParams:
+                        #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                        #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
                         print(values)
                 else:
@@ -553,9 +553,9 @@ def main():
                 traceb = values['payload']['traceback']; print(traceb)
             except Exception as e:
                 traceb = "None"
-            if emailParams:
-                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+            #if emailParams:
+            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             sys.exit(0)
         else:
             print("The Environment named " + str(environment.name) + " have been successfully deleted.")
@@ -576,9 +576,9 @@ def main():
                 traceb = values['payload']['traceback']; print(traceb)
             except Exception as e:
                 traceb = "None"
-            if emailParams:
-                missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+            #if emailParams:
+            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
         else:
             if str(cloudType).lower() == "aws":
                 print("The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted.")
@@ -623,9 +623,9 @@ def main():
                     traceb = values['payload']['traceback']; print(traceb)
                 except Exception as e:
                     error = "None"
-                if emailParams:
-                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                #if emailParams:
+                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                 sys.exit(0)
             else:
                 print("The Environment named " + str(environmentName) + " have been successfully deleted.")
@@ -643,9 +643,9 @@ def main():
                     traceb = values['payload']['traceback']; print(traceb)
                 except Exception as e:
                     traceb = "None"
-                if emailParams:
-                    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                #if emailParams:
+                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
             else:
                 print("The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted.")
 
