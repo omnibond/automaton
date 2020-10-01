@@ -13,7 +13,7 @@ import hashlib
 import requests
 import json
 import traceback
-import commands
+import subprocess
 
 from scheduler import Scheduler
 
@@ -26,11 +26,11 @@ class Ccq(Scheduler):
         super(Ccq, self).__init__(**kwargs)
 
     def generateParentJobScriptHeader(self, numNodes, numCores, wallTime):
-        print "Not yet implemented."
+        print("Not yet implemented.")
         return {"status": "success", "payload": "Not yet implemented."}
 
     def generateChildJobScriptHeader(self, numNodes, numCores, wallTime, jobPrefixString):
-        print "Not yet implemented."
+        print("Not yet implemented.")
         return {"status": "success", "payload": "Not yet implemented."}
 
     def getCommands(self, **kwargs):
@@ -77,7 +77,7 @@ class Ccq(Scheduler):
 
         ccOptionsParsed = {"numberOfInstancesRequested": "1",  "numCpusRequested": "1", "wallTimeRequested": "None", "stdoutFileLocation": "default", "stderrFileLocation": "default", "combineStderrAndStdout": "None", "copyEnvironment": "None", "eventNotification": "None", "mailingAddress": "None", "jobRerunable": "None", "memoryRequested": "1000", "accountToCharge": "None", "jobBeginTime": "None", "jobArrays": "None", "useSpot": "no", "spotPrice": "None", "requestedInstanceType": "default", "networkTypeRequested": "default", "optimizationChoice": "cost",  "pathToExecutable": "None", "criteriaPriority": "mcn", "schedulerToUse": "default", "schedType": "default", "volumeType": str(volumeType), "certLength": "1", "jobWorkDir": str(jobWorkDir), "justPrice": "false", "ccqHubSubmission": "False", "useSpotFleet": "False", "spotFleetWeights": "None", "spotFleetTotalSize": "None", "spotFleetType": "lowestPrice", "terminateInstantly": "False", "skipProvisioning": "False", "submitInstantly": "False", "timeLimit": "None", "createPInstances": "False", "image": "None", "maxIdle": "5", "placementGroupName": "None", "useGpu": "False", "gpuType": "None", "usePreemptible": "False", "cpuPlatform": "None", "maintain": "False"}
 
-        for attribute in options.keys():
+        for attribute in list(options.keys()):
             ccOptionsParsed[attribute] = str(options[attribute])
 
         if str(ccOptionsParsed['requestedInstanceType']) != "default":

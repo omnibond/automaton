@@ -29,7 +29,7 @@ class AwsResources(Resource):
             client = session.create_client(str(service), region_name=str(self.region))
             return {"status": "success", "payload": client}
         except Exception as e:
-            print "Trying second method of getting a Botocore Session"
+            print("Trying second method of getting a Botocore Session")
             pass
         try:
             session = botocore.session.get_session()
@@ -43,7 +43,7 @@ class AwsResources(Resource):
         client = None
         stackId = None
         cftBody = ""
-        print "About to get those parameters"
+        print("About to get those parameters")
         parameters = [{'ParameterKey': 'KeyName', 'ParameterValue': str(options['keyname'])}, {'ParameterKey': 'InstanceType', 'ParameterValue': str(options['instancetype'])}, {'ParameterKey': 'NetworkCIDR', 'ParameterValue': str(options['networkcidr'])}, {'ParameterKey': 'vpc', 'ParameterValue': str(options['vpc'])}, {'ParameterKey': 'PublicSubnet', 'ParameterValue': str(options['publicsubnet'])}]
         capabilities = str(options['capabilities']).split(",")
 
@@ -63,7 +63,7 @@ class AwsResources(Resource):
         if client is not None:
             try:
                 response = client.create_stack(StackName=resourceName, TemplateBody=cftBody, Parameters=parameters, Capabilities=capabilities)
-                print "The Cloud Formation Stack is now creating."
+                print("The Cloud Formation Stack is now creating.")
                 # Get the stack ID for use in getting the events of the stack
                 for i in response:
                     if i == 'StackId':
@@ -75,7 +75,7 @@ class AwsResources(Resource):
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a Botocore client to CloudFormation.", "traceback": ''.join(traceback.format_stack())}}
 
     def deleteControlResources(self, resourceId):
-        print "RESOURCE Id is: " + str(resourceId)
+        print("RESOURCE Id is: " + str(resourceId))
         values = self.createBotocoreClient("cloudformation")
         if values['status'] != "success":
             return {"status": "error", "payload": values['payload']}
@@ -123,16 +123,16 @@ class AwsResources(Resource):
                     resourceStatusReason = ""
                 if resourceType == 'AWS::CloudFormation::Stack':
                     status = resourceStatus
-                print "ResourceStatusReason 1 is "
-                print resourceStatusReason
+                print("ResourceStatusReason 1 is ")
+                print(resourceStatusReason)
                 # If waiting for create we need to monitor the state of the Stack, if waiting for deletion we need to wait until the stack is gone
                 if stateToFind == "creation":
                     if status == "CREATE_COMPLETE":
-                        print "The Cloud Formation Stack has been created successfully."
+                        print("The Cloud Formation Stack has been created successfully.")
                         return {"status": "success", "payload": "The Cloud Formation Stack has been created successfully."}
                     elif status == "ROLLBACK_COMPLETE" or status == "ROLLBACK_FAILED":
-                        print "ResourceStatusReason 2 is "
-                        print resourceStatusReason
+                        print("ResourceStatusReason 2 is ")
+                        print(resourceStatusReason)
                         return {"status": "error", "payload": {"error": "The Cloud Formation Template failed to launch properly. The error associated with the Cloud Formation Template is: " + str(resourceStatusReason), "traceback": ''.join(traceback.format_stack())}}
                     elif status == "CREATE_FAILED":
                         return {"status": "error", "payload": {"error": "The Cloud Formation Template failed to launch properly. The error associated with the Cloud Formation Template is: " + str(resourceStatusReason), "traceback": ''.join(traceback.format_stack())}}
@@ -147,12 +147,12 @@ class AwsResources(Resource):
                 # If we are monitoring for the delete of the Stack then when it deletes we will get the stack not found exception and then we can return success. Otherwise it is an error and should be returned as such
                 if stateToFind == "deletion":
                     if "Stack [" + str(resourceId) + "] does not exist" in ''.join(traceback.format_exc()):
-                        print "The Cloud Formation Stack has been deleted successfully."
+                        print("The Cloud Formation Stack has been deleted successfully.")
                         return {"status": "success", "payload": "The Cloud Formation Stack has been deleted successfully."}
 
                 return {"status": "error", "payload": {"error": "Encountered an error when attempting to monitor the Cloud Formation Stack.", "traceback": ''.join(traceback.format_exc())}}
 
-            print "You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state."
+            print("You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state.")
             counter += 1
             if maxTimeToWait < timeElapsed:
                 done = True

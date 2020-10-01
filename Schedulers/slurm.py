@@ -45,7 +45,7 @@ class Slurm(Scheduler):
             lineNum += 1
             if "JOBID" not in line and str(jobPrefixString) in line:
                 stillRunning += 1
-        print "STILL RUNNING: " + str(stillRunning)
+        print("STILL RUNNING: " + str(stillRunning))
         if stillRunning == 0:
             return {"status": "success", "payload": True}
         else:

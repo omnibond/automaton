@@ -10,7 +10,7 @@
 import traceback
 import paramiko
 import socket
-import StringIO
+import io
 import time
 import os
 import sys
@@ -40,7 +40,7 @@ class JobScript(object):
             if private_key:
 
                 # Auth the previous way (without MFA and the auth_interactive method)
-                private_key = paramiko.rsakey.RSAKey.from_private_key(StringIO.StringIO(private_key))
+                private_key = paramiko.rsakey.RSAKey.from_private_key(io.StringIO(private_key))
 
                 ssh_client = paramiko.SSHClient()
                 ssh_client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
@@ -52,7 +52,7 @@ class JobScript(object):
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.connect((host, port))
                 except Exception as e:
-                    print('Connect failed: ' + str(e))
+                    print(('Connect failed: ' + str(e)))
                 transport = paramiko.Transport(sock)
                 try:
                     transport.start_client()
@@ -68,7 +68,7 @@ class JobScript(object):
                         elif "MFA Token" in str(fields[0][0]):
                             return [mfaToken]
                     except Exception as e:
-                        print e.message
+                        print(e.message)
 
                 if not transport.is_authenticated():
                     transport.auth_interactive(username, handler)
@@ -76,14 +76,15 @@ class JobScript(object):
                     print('*** Authentication failed.')
                     transport.close()
         except paramiko.AuthenticationException as e:
-            print "except 1"
-            print e.message
-        except socket.error, (value, message):
-            print "except 2"
-            print message
+            print("except 1")
+            print(e.message)
+        except socket.error as xxx_todo_changeme:
+            (value, message) = xxx_todo_changeme.args
+            print("except 2")
+            print(message)
         except Exception as e:
-            print "except 3"
-            print e.message
+            print("except 3")
+            print(e.message)
         if not private_key:
             return {'status': "success", "payload": transport}
         else:
@@ -105,18 +106,18 @@ class JobScript(object):
             filepath = kwargs['filepath']
             userName = kwargs['userName']
             password = kwargs['password']
-            print kwargs
+            print(kwargs)
             if '.sh' not in filename:
                 filename = str(filename)+'.sh'
             url = "https://"+str(dns)+str(sharedDir)+"/"+str(filename)
-            print url
+            print(url)
             with open(str(filepath), 'rb') as f:
                 file = f.read()
             response = requests.request('PUT', url, auth=(userName, password), allow_redirects=False, data=file)
-            print response.text
+            print(response.text)
         except Exception as e:
-            print "Error uploading file with webdav protocol"
-            print e
+            print("Error uploading file with webdav protocol")
+            print(e)
             pass
 
     def executeCommand(self, transport, command):
@@ -158,9 +159,9 @@ class JobScript(object):
     def monitor(self, jobId, scheduler, environment, schedulerName):
         jobCompleted = False
         timeElapsed = 0
-        print "Now monitoring the status of the CCQ job. Your jobID is " + str(jobId)
+        print("Now monitoring the status of the CCQ job. Your jobID is " + str(jobId))
         while not jobCompleted:
-            print "It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched."
+            print("It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched.")
             values = scheduler.getJobStatus(environment, jobId, schedulerName, self.loginDNS)
             if values['status'] != "success":
                 return values
@@ -175,11 +176,11 @@ class JobScript(object):
                     elif values['payload'] == "Completed":
                         return {"status": "success", "payload": "The CCQ job has successfully completed."}
                     else:
-                        print "The job is still creating the requested resources, waiting two minutes before checking the status again."
+                        print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
                         timeElapsed += 120
                         time.sleep(120)
                 else:
-                    print "The job is still running, waiting one minute before checking the status again."
+                    print("The job is still running, waiting one minute before checking the status again.")
                     timeElapsed += 60
                     time.sleep(60)
 
@@ -270,7 +271,7 @@ class JobScript(object):
         return {"status": "success", "payload": "Successfully checked the job script parameters."}
 
     def processJobScript(self):
-        print "Now processing the job script: " + str(self.name)
+        print("Now processing the job script: " + str(self.name))
         values = self.validateJobScriptOptions()
         if values['status'] != "success":
             return values
@@ -311,7 +312,7 @@ class JobScript(object):
                                     return values
                                 else:
                                     # We have successfully submitted the job, now we need to monitor the job if specified by the user
-                                    print values['payload']
+                                    print(values['payload'])
                                     jobId = values['payload']['jobId']
                                     schedulerName = values['payload']['schedulerName']
 

@@ -39,18 +39,18 @@ def sendMessage(sender, smtp, password, receiver, missive, server):
 def main(sender, smtp, password, receiver, missive):
     try:
         response = setServer(sender, smtp, password)
-        print response['message']
+        print(response['message'])
         server = response['server']
     except Exception as e:
-        print "There was an error logging in to the email"
-        print str(e)
+        print("There was an error logging in to the email")
+        print(str(e))
         server.quit()
         return {"message": str(e), "status": "fail"}
     try:
         response = sendMessage(sender, smtp, password, receiver, missive, server)
     except Exception as e:
-        print "There was an error sending the email"
-        print str(e)
+        print("There was an error sending the email")
+        print(str(e))
         server.quit()
         return {"message": str(e), "status": "fail"}
     return {"message": "Email sent", "status": "success"}

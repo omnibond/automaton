@@ -20,7 +20,7 @@ class GcpResources(Resource):
 
     def createControlResources(self, templateLocation, resourceName, options):
         # Launch a Control Node through gcp and return the id
-        print vars(self)
+        print(vars(self))
         service = "compute"
         version = "v1"
         response = self.createClient(service, version)
@@ -28,8 +28,8 @@ class GcpResources(Resource):
             return {"status": "error"}
         else:
             client = response['payload']
-        print "ResourceName is "
-        print resourceName
+        print("ResourceName is ")
+        print(resourceName)
         body = self.makeBody(resourceName, options)
         instance = client.instances().insert(project=options['projectid'], zone=options['zone'], body=body)
         request = instance.execute()
@@ -43,11 +43,11 @@ class GcpResources(Resource):
         while True:
             result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=str(request['name'])).execute()
             if result['status'] == 'DONE':
-                print "GCP Control Node has been created"
+                print("GCP Control Node has been created")
                 if "error" in result:
                     return {"status": "error", "payload": {"error": str(result['error']), "traceback": ''.join(traceback.format_stack())}}
                 else:
-                    print "Obtaining the IP address from the " + str(resourceName) + " Control Resources."
+                    print("Obtaining the IP address from the " + str(resourceName) + " Control Resources.")
                     time.sleep(10)
                     response = self.createClient(service, version)
                     client = response['payload']
@@ -57,7 +57,7 @@ class GcpResources(Resource):
                     #return {"status": "success", "payload": request['name'], "controlIP": str(remoteIp)}
                     return {"status": "success", "payload": str(remoteIp)}
             else:
-                print "You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state."
+                print("You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state.")
                 counter += 1
             time.sleep(60)
 
@@ -76,7 +76,7 @@ class GcpResources(Resource):
         while True:
             result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=request['name'])
             if result['status'] == 'DONE':
-                print "GCP Control Node has been Deleted"
+                print("GCP Control Node has been Deleted")
                 if "error" in result:
                     return {"status": "error", "payload": {"error": str(result['error']), "traceback": ''.join(traceback.format_stack())}}
                 else:

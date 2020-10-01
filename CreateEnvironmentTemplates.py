@@ -11,7 +11,7 @@ import sys
 import argparse
 import os
 import uuid
-import ConfigParser
+import configparser
 import ast
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/EnvironmentTemplates"))
 
@@ -54,7 +54,7 @@ def main():
             try:
                 templateName = args[1]
             except Exception as e:
-                print "You must specify a template name when running the ccAutomaton Environment Generator utility. This can be done using the -tn argument or by adding the template name type after the command."
+                print("You must specify a template name when running the ccAutomaton Environment Generator utility. This can be done using the -tn argument or by adding the template name type after the command.")
                 sys.exit(0)
 
     if environmentType is None:
@@ -62,7 +62,7 @@ def main():
         try:
             environmentType = args[1]
         except Exception as e:
-            print "You must specify an environment type when running the ccAutomaton Environment Generator utility. This can be done using the -et argument or by adding the environment type after the command."
+            print("You must specify an environment type when running the ccAutomaton Environment Generator utility. This can be done using the -et argument or by adding the environment type after the command.")
             sys.exit(0)
 
     # If we are just listing or deleting the template(s) then we don't need any of this stuff other than the environment name
@@ -86,18 +86,18 @@ def main():
         else:
             # If it isn't listTemplates it must be deleteTemplate
             values = environmentTemplate.delete()
-        print values['payload']
+        print(values['payload'])
         sys.exit(0)
 
     if configFilePath is None:
         try:
             configFilePath = args[1]
         except Exception as e:
-            print "You must specify the path to the conf file when running the ccAutomaton Environment Template Generator utility.  This can be done using the -cf argument."
+            print("You must specify the path to the conf file when running the ccAutomaton Environment Template Generator utility.  This can be done using the -cf argument.")
             sys.exit(0)
 
     # Read in configuration values from the ccAutomaton.conf file from the local directory
-    parser = ConfigParser.ConfigParser()
+    parser = configparser.ConfigParser()
     parser.read(configFilePath)
     sections = parser.sections()
     configurationFileParameters = {}
@@ -108,14 +108,14 @@ def main():
             try:
                 configurationFileParameters[str(section)][option] = parser.get(section, option)
             except Exception as e:
-                print e
+                print(e)
                 configurationFileParameters[str(section)][option] = None
 
     # Check and see if the requested environment/cloud type is configured in the conf file
     try:
         configurationFileParameters[str(templateName)]
     except Exception as e:
-        print "Unable to find the configuration for the " + str(templateName) + " template in the "+str(configFilePath)+ " file. Please check the file and try again."
+        print("Unable to find the configuration for the " + str(templateName) + " template in the "+str(configFilePath)+ " file. Please check the file and try again.")
         sys.exit(0)
 
     # If GCP check and see if the login node and scheduler names are lower case, if not make them change it, and check to make sure the character length is less than 18.  If it is more than 18, sys exit and make them do it again.
@@ -125,11 +125,11 @@ def main():
             if "login" in i or "scheduler" in i or "filesystem" in i:
                 nameCheck = ast.literal_eval(configurationFileParameters[templateName][i])['name']
                 if len(str(nameCheck)) > 18:
-                    print "The name for " + str(i) + " is too many characters.  It needs to be 18 or less."
+                    print("The name for " + str(i) + " is too many characters.  It needs to be 18 or less.")
                     sys.exit(0)
                 for letter in str(nameCheck):
                     if letter.isupper():
-                        print "There is an uppercase letter in your " + str(i) + "'s instance's name.  All letters must be lowercase for gcp."
+                        print("There is an uppercase letter in your " + str(i) + "'s instance's name.  All letters must be lowercase for gcp.")
                         sys.exit(0)
 
     kwargs = {"environmentType": environmentType, "parameters": configurationFileParameters[str(templateName)], "templateName": str(templateName)}
@@ -147,11 +147,11 @@ def main():
 
     values = environmentTemplate.create(cloudType)
     if values['status'] != "success":
-        print values['payload']['error']
-        print values['payload']['traceback']
+        print(values['payload']['error'])
+        print(values['payload']['traceback'])
         sys.exit(0)
     else:
-        print values['payload']
+        print(values['payload'])
         sys.exit(0)
 
 main()

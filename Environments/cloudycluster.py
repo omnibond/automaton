@@ -93,14 +93,14 @@ class CloudyCluster(Environment):
         if values['status'] != "success":
             return {"status": "error", "payload": values['payload']}
         else:
-            print "Successfully started the creation of the Control Resources. Now monitoring to determine when the resources are up and running."
+            print("Successfully started the creation of the Control Resources. Now monitoring to determine when the resources are up and running.")
             resourceId = values['payload']
             if str(self.cloudType) == "aws":
                 f = open('infoFile', 'w')
                 f.write("controlResources="+str(resourceId)+"\n")
                 f.close()
             if str(self.cloudType).lower() == "aws":
-                print "The newly created Cloud Formation Stack Id is: " + str(resourceId)
+                print("The newly created Cloud Formation Stack Id is: " + str(resourceId))
                 values = resourceClass.monitorControlResources(resourceId, "creation")
             elif str(self.cloudType).lower() == "gcp":
                 values['status'] = "success"
@@ -108,14 +108,14 @@ class CloudyCluster(Environment):
                 return {"status": "error", "payload": values['payload']}
             else:
                 if str(self.cloudType).lower() == "aws":
-                    print "The Control Resources are up and running, retrieving the new IP address of the Control Resources."
+                    print("The Control Resources are up and running, retrieving the new IP address of the Control Resources.")
                     values = resourceClass.getValue("InstanceIP", resourceId)
                 elif str(self.cloudType).lower() == "gcp":
                     values['status'] = "success"
                 if values['status'] != "success":
                     return {"status": "error", "payload": values['payload']}
                 else:
-                    print "Successfully retrieved the new IP address of the Control Resources. Now obtaining the newly assigned DNS name for the Control Resources. The Control Node IP Address is: " + str(values['payload']) + "."
+                    print("Successfully retrieved the new IP address of the Control Resources. Now obtaining the newly assigned DNS name for the Control Resources. The Control Node IP Address is: " + str(values['payload']) + ".")
                     ipAddress = values['payload']
                     maxTimeToWait = 600
                     timeElapsed = 0
@@ -134,14 +134,14 @@ class CloudyCluster(Environment):
                     if values['status'] != "success":
                         return {"status": "error", "payload": values['payload']}
                     else:
-                        print "Successfully retrieved the new DNS name for the Control Resources. The new DNS name is: " + str(self.dnsName)
-                        print "Now obtaining the newly created Database Table names."
+                        print("Successfully retrieved the new DNS name for the Control Resources. The new DNS name is: " + str(self.dnsName))
+                        print("Now obtaining the newly created Database Table names.")
                         values = self.getDatabaseTableNames()
                         if values['status'] != "success":
-                            print values
+                            print(values)
                             return {"status": "error", "payload": values['payload']}
                         else:
-                            print "Successfully obtained the newly created Database Table names."
+                            print("Successfully obtained the newly created Database Table names.")
                             stuff = self.validateControl()
                             if stuff["status"] != "success":
                                 if "File failed to validate" in str(stuff['payload']['error']):
@@ -160,7 +160,7 @@ class CloudyCluster(Environment):
                                         if values['status'] != "success":
                                             return {"status": "error", "payload": values['payload']}
                                         else:
-                                            print "Successfully modified the Database throughput to the values requested in the configuration file."
+                                            print("Successfully modified the Database throughput to the values requested in the configuration file.")
                                     except Exception as e:
                                         # The user did not specify any modifications to the DB Throughput so we just leave it as the default.
                                         pass
@@ -169,13 +169,13 @@ class CloudyCluster(Environment):
                                     if values['status'] != "success":
                                         return {"status": "error", "payload": values['payload']}
                                     else:
-                                        print "Successfully generated a new API Key for the user. Now writing out a few last configuration details."
+                                        print("Successfully generated a new API Key for the user. Now writing out a few last configuration details.")
                                         values = self.writeOutEfsObjectToDb()
                                         if values['status'] != "success":
                                             return {"status": "error", "payload": values['payload']}
                                         else:
-                                            print "Successfully wrote out the last few configuration details."
-                                            print "\n"
+                                            print("Successfully wrote out the last few configuration details.")
+                                            print("\n")
                                             return {"status": "success", "payload": self.dnsName}
 
     def createEnvironment(self):
@@ -205,7 +205,7 @@ class CloudyCluster(Environment):
                 # This is the ClusterObject that we need to pass to the /CloudyCluster/Base route
                 template = values['payload']['template']
                 self.name = values['payload']['environmentName']
-                print "The new full Environment name is: " + str(self.name)
+                print("The new full Environment name is: " + str(self.name))
                 values = self.saveEnvironmentConfig(template)
                 if values['status'] != "success":
                     return {"status": "error", "payload": values['payload']}
@@ -282,7 +282,7 @@ class CloudyCluster(Environment):
             if values['status'] != "success":
                 return {"status": "success", "payload": values['payload']}
             else:
-                print "The Environment has successfully been deleted."
+                print("The Environment has successfully been deleted.")
                 return {"status": "success", "payload": "The Environment has been successfully deleted."}
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error when trying to delete the Environment.", "traceback": ''.join(traceback.format_exc(e))}}
@@ -298,7 +298,7 @@ class CloudyCluster(Environment):
                 if str(instance)[:2] == "i-":
                     stateInfo = ast.literal_eval(networkResults[instance]["State"])
                     if str(stateInfo["Name"]).lower() != "running":
-                        print "Instance (" + str(instance) + ") is not yet in the running state."
+                        print("Instance (" + str(instance) + ") is not yet in the running state.")
                         # Instance has not yet successfully stopped/resumed so we must loop through again
                         done = False
 
@@ -309,7 +309,7 @@ class CloudyCluster(Environment):
                 if str(instance)[:2] == "i-":
                     stateInfo = ast.literal_eval(utilityResults[instance]["State"])
                     if str(stateInfo["Name"]).lower() != str("running") and utilityResults[instance]["RecType"] != "ControlNode":
-                        print "Instance (" + str(instance) + ") is not yet in the running state."
+                        print("Instance (" + str(instance) + ") is not yet in the running state.")
                         # Instance has not yet successfully stopped/resumed so we must loop through again
                         done = False
             if done:
@@ -335,7 +335,7 @@ class CloudyCluster(Environment):
             time.sleep(120)
 
         # Need to check and make sure that all the instances actually paused/resumed successfully before returning success. For the small environment we will need to check both Utility and Network groups
-        print "Waiting for the instances to enter the desired state."
+        print("Waiting for the instances to enter the desired state.")
         done = False
         timeElapsed = 0
         maxTimeToWait = 360
@@ -350,7 +350,7 @@ class CloudyCluster(Environment):
                     if str(instance)[:2] == "i-":
                         stateInfo = ast.literal_eval(networkResults[instance]["State"])
                         if str(stateInfo["Name"]).lower() != str(desiredState):
-                            print "Instance (" + str(instance) + ") is not yet in the " + str(desiredState) +" state."
+                            print("Instance (" + str(instance) + ") is not yet in the " + str(desiredState) +" state.")
                             # Instance has not yet successfully stopped/resumed so we must loop through again
                             done = False
 
@@ -361,7 +361,7 @@ class CloudyCluster(Environment):
                     if str(instance)[:2] == "i-":
                         stateInfo = ast.literal_eval(utilityResults[instance]["State"])
                         if str(stateInfo["Name"]).lower() != str(desiredState) and utilityResults[instance]["RecType"] != "ControlNode":
-                            print "Instance (" + str(instance) + ") is not yet in the " + str(desiredState) +" state."
+                            print("Instance (" + str(instance) + ") is not yet in the " + str(desiredState) +" state.")
                             # Instance has not yet successfully stopped/resumed so we must loop through again
                             done = False
                 if not done:
@@ -455,7 +455,7 @@ class CloudyCluster(Environment):
                     lineNum += 1
                     if "JOBID" not in line and str(jobPrefixString) in line:
                         stillRunning += 1
-                print "STILL RUNNING: " + str(stillRunning)
+                print("STILL RUNNING: " + str(stillRunning))
                 if stillRunning == 0:
                     return {"status": "success", "payload": True}
                 else:
@@ -504,7 +504,7 @@ class CloudyCluster(Environment):
                 if timeElapsed > maxTimeToWait:
                     return {"status": "error", "payload": {"error": "There was a problem trying to get the Login Instance's DNS name that is required to submit the job.", "traceback": ''.join(traceback.format_exc())}}
                 else:
-                    print traceback.format_exc()
+                    print(traceback.format_exc())
                     time.sleep(timeToWait)
                     timeElapsed += timeToWait
 
@@ -637,8 +637,8 @@ class CloudyCluster(Environment):
                 url = 'https://' + str(self.dnsName) + '/srv/startCluster'
                 r = requests.post(url, cookies=self.sessionCookies, json={'clusterObj': template})
                 response = json.loads(r.content)
-                print "RESPONSE IS "
-                print str(response)
+                print("RESPONSE IS ")
+                print(str(response))
                 if response['response'] != "success":
                     return {"status": "error", "payload": {"error": response['message'], "traceback": ''.join(traceback.format_stack())}}
                 else:
@@ -668,10 +668,10 @@ class CloudyCluster(Environment):
                         # Environment encountered an error and failed
                         return {"status": "error", "payload": {"error": "There was an error encountered during the creation of the new Environment.\n" + str(clusterError), "traceback": ''.join(traceback.format_stack())}}
             except Exception as e:
-                print "Checking status error:"
-                print ''.join(traceback.format_exc())
-                print "Printing content of response\n"
-                print r.content
+                print("Checking status error:")
+                print(''.join(traceback.format_exc()))
+                print("Printing content of response\n")
+                print(r.content)
                 pass
 
             if maxTimeToWait < timeElapsed:
@@ -712,9 +712,9 @@ class CloudyCluster(Environment):
         timeElapsed = 0
         timeToWait = 120
         done = False
-        print "Now waiting for the Environment to delete."
+        print("Now waiting for the Environment to delete.")
         while not done:
-            print "You have waited " + str(int(timeElapsed)/int(60)) + " minutes for the Environment to delete."
+            print("You have waited " + str(int(timeElapsed)/int(60)) + " minutes for the Environment to delete.")
             try:
                 url = 'https://'+str(self.dnsName)+'/srv/getClusterByName'
                 r = requests.post(url, cookies=self.sessionCookies, json={'clusterName': self.name})

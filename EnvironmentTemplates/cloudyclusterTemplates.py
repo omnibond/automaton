@@ -13,7 +13,7 @@ import uuid
 import ast
 import traceback
 import copy
-import commands
+import subprocess
 import uuid
 import math
 from random import randint
@@ -127,7 +127,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                         if category == "nat":
                             for reqVar in requiredNatParameters:
                                 if reqVar not in tempObj:
-                                    print "The " + str(reqVar) + " attribute is required when specifying a NAT Instance. Please add the " + str(reqVar) + " to your NAT Instance configuration and try again."
+                                    print("The " + str(reqVar) + " attribute is required when specifying a NAT Instance. Please add the " + str(reqVar) + " to your NAT Instance configuration and try again.")
                                     sys.exit(0)
 
                         for item in tempObj:
@@ -138,7 +138,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 validAttributes = ""
                                 for entry in validNatParameters:
                                     validAttributes += str(entry) + ", "
-                                print "The attribute: " + str(item) + " is not supported for the NAT Instance. The valid attributes for a NAT Instance configuration are: " + str(validAttributes[:-2]) + "."
+                                print("The attribute: " + str(item) + " is not supported for the NAT Instance. The valid attributes for a NAT Instance configuration are: " + str(validAttributes[:-2]) + ".")
                                 sys.exit(0)
                                 #fixedObj[item] = tempObj[item]
                         for thing in fixedObj:
@@ -164,7 +164,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 validAttributes = ""
                                 for entry in validClusterParameters:
                                     validAttributes += str(entry) + ", "
-                                print "The attribute: " + str(param) + " is not supported for the Cluster configuration. The valid attributes for a Cluster configuration are: " + str(validAttributes[:-2]) + "."
+                                print("The attribute: " + str(param) + " is not supported for the Cluster configuration. The valid attributes for a Cluster configuration are: " + str(validAttributes[:-2]) + ".")
                                 sys.exit(0)
                                 #newTemplate[param] = self.parameters[param]
 
@@ -178,7 +178,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                             validAttributes = ""
                             for entry in attrsToCheck:
                                 validAttributes += str(entry) + ", "
-                            print "The attribute: " + str(attr) + " is not supported for a " + str(targetCategory) + " configuration. The valid attributes for a " + str(targetCategory) + " configuration are: " + str(validAttributes[:-2]) + "."
+                            print("The attribute: " + str(attr) + " is not supported for a " + str(targetCategory) + " configuration. The valid attributes for a " + str(targetCategory) + " configuration are: " + str(validAttributes[:-2]) + ".")
                             sys.exit(0)
 
                     fixedObj = {}
@@ -199,37 +199,37 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                     if category == "schedulers":
                         for reqVar in requiredSchedulerParameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying a Scheduler Instance. Please add the " + str(reqVar) + " to your Scheduler Instance configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying a Scheduler Instance. Please add the " + str(reqVar) + " to your Scheduler Instance configuration and try again.")
                                 sys.exit(0)
 
                     if category == "webDavs":
                         for reqVar in requiredWebDavParameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying a Login Instance. Please add the " + str(reqVar) + " to your Login Instance configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying a Login Instance. Please add the " + str(reqVar) + " to your Login Instance configuration and try again.")
                                 sys.exit(0)
 
                     if category == "computeGroups":
                         for reqVar in requiredComputeGroupParameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying a Compute Group. Please add the " + str(reqVar) + " to your Compute Group configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying a Compute Group. Please add the " + str(reqVar) + " to your Compute Group configuration and try again.")
                                 sys.exit(0)
 
                     if category == "workingGroups":
                         for reqVar in requiredFilesystemParameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying a Filesystem. Please add the " + str(reqVar) + " to your Filesystem configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying a Filesystem. Please add the " + str(reqVar) + " to your Filesystem configuration and try again.")
                                 sys.exit(0)
 
                     if category == "efs":
                         for reqVar in requiredEfsParameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying an EFS filesystem. Please add the " + str(reqVar) + " to your EFS filesystem configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying an EFS filesystem. Please add the " + str(reqVar) + " to your EFS filesystem configuration and try again.")
                                 sys.exit(0)
 
                     if category == "s3":
                         for reqVar in requiredS3Parameters:
                             if reqVar not in tempObj:
-                                print "The " + str(reqVar) + " attribute is required when specifying an S3 bucket. Please add the " + str(reqVar) + " to your S3 Bucket configuration and try again."
+                                print("The " + str(reqVar) + " attribute is required when specifying an S3 bucket. Please add the " + str(reqVar) + " to your S3 Bucket configuration and try again.")
                                 sys.exit(0)
 
                     if len(fixedObj) > 0:
@@ -269,7 +269,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                         fixedObj['efsName'] = "efsdata"
                                     newTemplate['efsName'] = fixedObj['efsName']
                                 else:
-                                    print "Unsupported EFS type specified, the allowed values are: common, ssw, and sharedHome. Please correct your configuration file and try again."
+                                    print("Unsupported EFS type specified, the allowed values are: common, ssw, and sharedHome. Please correct your configuration file and try again.")
                                     sys.exit(0)
                             else:
                                 # Default to shared storage if not specified
@@ -289,7 +289,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
                                 validSchedTypes = ""
                                 for sched in validSchedulerTypes:
                                     validSchedTypes += str(sched) + ", "
-                                print "Unsupported Schedule Type specified. The valid schedulers are: " + str(validSchedTypes[:-2]) + "."
+                                print("Unsupported Schedule Type specified. The valid schedulers are: " + str(validSchedTypes[:-2]) + ".")
                                 sys.exit(0)
 
                         if category == "workingGroups":
@@ -362,26 +362,26 @@ class CloudyClusterTemplate(EnvironmentTemplate):
             # The initial Creation Wizard we are using to create the environments was designed to do 1 of each type per creation
             # return the user an error if they specify more than one of each type.
             if len(newTemplate['workingGroups']) > 1:
-                print "The current iteration of ccAutomaton and CloudyCluster only supports creating one Filesystem per environment. Please modify your configuration file accordingly and try again."
+                print("The current iteration of ccAutomaton and CloudyCluster only supports creating one Filesystem per environment. Please modify your configuration file accordingly and try again.")
                 sys.exit(0)
 
             if len(newTemplate['computeGroups']) > 1:
-                print "The current iteration of ccAutomaton and CloudyCluster only supports creating one Compute Group during the initial environment creation. You can add more Compute Groups afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again."
+                print("The current iteration of ccAutomaton and CloudyCluster only supports creating one Compute Group during the initial environment creation. You can add more Compute Groups afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again.")
                 sys.exit(0)
 
             if len(newTemplate['schedulers']) > 1:
-                print "The current iteration of ccAutomaton and CloudyCluster only supports creating one Scheduler during the initial environment creation. You can add more Schedulers afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again."
+                print("The current iteration of ccAutomaton and CloudyCluster only supports creating one Scheduler during the initial environment creation. You can add more Schedulers afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again.")
                 sys.exit(0)
 
             if len(newTemplate['webDavs']) > 1:
-                print "The current iteration of ccAutomaton and CloudyCluster only supports creating one Access Instance during the initial environment creation. You can add more Access Instances afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again."
+                print("The current iteration of ccAutomaton and CloudyCluster only supports creating one Access Instance during the initial environment creation. You can add more Access Instances afterwards through the CloudyCluster UI. Please modify your configuration file accordingly and try again.")
                 sys.exit(0)
 
             # Check to see if the user tried to create a fixed compute group with a CCQ scheduler
             if len(newTemplate['computeGroups']) > 0:
                 for scheduler in newTemplate['schedulers']:
                     if scheduler['scalingType'] != "fixed":
-                        print "You cannot create a CCQ scheduler and a fixed compute group during initial environment creation. A fixed compute group requires a non CCQ enabled scheduler to function properly. Please modify your configuration file accordingly and try again."
+                        print("You cannot create a CCQ scheduler and a fixed compute group during initial environment creation. A fixed compute group requires a non CCQ enabled scheduler to function properly. Please modify your configuration file accordingly and try again.")
                         sys.exit(0)
 
         # Write out template to the environmentType directory for later storage

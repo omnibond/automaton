@@ -165,17 +165,17 @@ class TopicModelingPipeline(Workflow):
                                         return {"status": "error", "payload": values['payload']}
                                     else:
                                         loginDomain = values['payload']
-                                        print "Made it to submit"
+                                        print("Made it to submit")
                                         jobObj = {"jobScriptText": jobScriptText, "ccOptionsParsed": ccOptionsParsed, "jobMD5Hash": jobMD5Hash, "jobScriptLocation": jobScriptLocation + str(jobName), "jobName": str(jobName)}
                                         values = ccqScheduler.submitJob(self.environment.sessionCookies, jobObj, apiKey, loginDomain)
                                         if values['status'] != "success":
                                             return {"status": "error", "payload": values['payload']}
                                         else:
                                             jobId = values['payload']['jobId']
-                                            print "The job has been successfully submitted to ccq in the CloudyCluster Environments. The new Job Id is: " + str(jobId)
+                                            print("The job has been successfully submitted to ccq in the CloudyCluster Environments. The new Job Id is: " + str(jobId))
                                             # We have successfully submitted the job to ccq the instances and experiments should be creating/running now. We now need to monitor the job's statuses to see when they finish
                                             jobCompleted = False
-                                            print "Now monitoring the status of the CCQ job."
+                                            print("Now monitoring the status of the CCQ job.")
                                             resourceTime = None
                                             while not jobCompleted:
                                                 values = self.environment.monitorJob(jobId, apiKey, self.options['schedulerToUse'], loginDomain, False, jobPrefixString, self.schedulerType)
@@ -188,23 +188,23 @@ class TopicModelingPipeline(Workflow):
                                                         # The job is no longer running and we need to take action accordingly
                                                         if values['payload'] == "Error":
                                                             # TODO print out the error message for the job here
-                                                            print "There was an error running the job, the error is:"
-                                                            print "Error printing not yet implemented yet."
+                                                            print("There was an error running the job, the error is:")
+                                                            print("Error printing not yet implemented yet.")
                                                             jobCompleted = True
                                                         elif values['payload'] == "Killed":
-                                                            print "The job was killed before it completed successfully. This could be due to a spot instance getting killed."
+                                                            print("The job was killed before it completed successfully. This could be due to a spot instance getting killed.")
                                                             jobCompleted = True
                                                         elif values['payload'] == "Completed":
                                                             jobSubmitTime = time.time()
                                                             tempTime = jobSubmitTime - resourceTime
-                                                            print "Resource creation took about: " + str(tempTime) + " seconds."
-                                                            print "The CCQ job has successfully completed."
+                                                            print("Resource creation took about: " + str(tempTime) + " seconds.")
+                                                            print("The CCQ job has successfully completed.")
                                                             jobCompleted = True
                                                         else:
-                                                            print "The job is still creating the requested resources, waiting two minutes before checking the status again."
+                                                            print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
                                                             time.sleep(120)
                                                     else:
-                                                        print "The job is still running, waiting two minutes before checking the status again."
+                                                        print("The job is still running, waiting two minutes before checking the status again.")
                                                         time.sleep(120)
                                             # Check the status of the jobs that are submitted by the experiment and exit when they finish properly.
                                             workflowJobsCompleted = False
@@ -216,19 +216,19 @@ class TopicModelingPipeline(Workflow):
                                                 else:
                                                     if values['payload']:
                                                         workflowJobsCompleted = True
-                                                        print "All of the jobs submitted by the workflow have completed."
+                                                        print("All of the jobs submitted by the workflow have completed.")
                                                     else:
-                                                        print "The jobs submitted by the experiment are still running, checking again in 30 seconds."
+                                                        print("The jobs submitted by the experiment are still running, checking again in 30 seconds.")
                                             endTime = time.time()
                                             tempTime = endTime - startTime
-                                            print "Total time elapsed is: " + str(tempTime) + " seconds."
+                                            print("Total time elapsed is: " + str(tempTime) + " seconds.")
                                             return {"status": "success", "payload": {}}
                 except Exception as e:
-                    print e
+                    print(e)
                     # Do not use CCQ and just submit the workflow to the local scheduler
                     pass
                 # Need to implement local submit stuff here (don't really have that yet)
-                print "Local submit is not yet implemented for this workflow."
+                print("Local submit is not yet implemented for this workflow.")
                 return {"status": "error", "payload": {"error": "Local submit is not yet implemented for this workflow.", "traceback": ''.join(traceback.format_stack())}}
 
     def monitor(self):
