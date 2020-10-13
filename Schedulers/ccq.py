@@ -96,7 +96,7 @@ class Ccq(Scheduler):
         # ccq generates an MD5 Hash to determine if the job has been ran before, we need to generate that here
         jobScriptTextTrimmed = ''.join(jobScriptText.split())
         #Calculate the MD5 hash for the job script:
-        newJobScriptMD5Hash = hashlib.md5(jobScriptTextTrimmed).hexdigest()
+        newJobScriptMD5Hash = hashlib.md5(jobScriptTextTrimmed.encode()).hexdigest()
 
         # Return the generated job text and the object we built
         return {"status": "success", "payload": {"ccOptionsParsed": ccOptionsParsed, "jobMD5Hash": newJobScriptMD5Hash}}

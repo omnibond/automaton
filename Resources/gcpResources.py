@@ -55,8 +55,9 @@ class GcpResources(Resource):
                     result = client.instances().list(project=options['projectid'], zone=options['zone'], filter='(status eq RUNNING) (name eq ' + str(resourceName) + ')').execute()
                     #print str(result)
                     remoteIp = result['items'][0]['networkInterfaces'][0]['accessConfigs'][0]['natIP']
+                    instanceName = result["items"][0]["name"]
                     #return {"status": "success", "payload": request['name'], "controlIP": str(remoteIp)}
-                    return {"status": "success", "payload": str(remoteIp)}
+                    return {"status": "success", "payload": str(remoteIp), "instanceName": instanceName}
             else:
                 print("You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state.")
                 counter += 1
@@ -64,9 +65,7 @@ class GcpResources(Resource):
 
     #####Delete the Google Cloud control node with the web route.  
     def deleteControlResources(self, resourceName, options):
-        service = "compute"
-        version = "v1"
-        response = self.createClient(service, version)
+        response = self.createClient("compute", "v1")
         if response['status'] != "success":
             return {"status": "error"}
         else:
@@ -75,7 +74,7 @@ class GcpResources(Resource):
         instance = client.instances().delete(project=options['projectid'], zone=options['zone'], instance=resourceName)
         request = instance.execute()
         while True:
-            result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=request['name'])
+            result = client.zoneOperations().get(project=options['projectid'], zone=options['zone'], operation=request['name']).execute()
             if result['status'] == 'DONE':
                 print("GCP Control Node has been Deleted")
                 if "error" in result:
@@ -84,7 +83,7 @@ class GcpResources(Resource):
                     return {"status": "success", "payload": request['name']}        
 
     def makeBody(self, resourceName, options):
-        with open(str(options['pubkeypath']), 'rb') as f:
+        with open(str(options['pubkeypath']), 'r') as f:
             tempsshkey = str(options['sshkeyuser'])+':'+f.read()       
 
         autoDelete = "true"
@@ -103,7 +102,7 @@ class GcpResources(Resource):
                     'boot': True,
                     'autoDelete': autoDelete,
                     'initializeParams': {'sourceImage': options['sourceimage']},
-                    'diskSizeGb': '45'
+                    'diskSizeGb': '55'
                 }
             ],
 

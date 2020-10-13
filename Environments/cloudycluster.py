@@ -48,12 +48,29 @@ class CloudyCluster(Environment):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error when trying to create the session.", "traceback": ''.join(traceback.format_exc(e))}}
 
-    def validateControl(self):
+    def validateControl(self, resourceClass, instanceName):
         try:
+            client = resourceClass.createClient("compute", "v1")["payload"]
+            correct_key = None
+            counter = 0
+            while not correct_key and counter < 5:
+                request = client.instances().get(project=self.controlParameters['projectid'], zone=self.controlParameters['zone'], instance=instanceName)
+                response = request.execute()
+                metadata = response["metadata"]
+                print("metadata: ", metadata)
+                if "items" in metadata:
+                    for attribute in metadata["items"]:
+                        if attribute["key"] == "startup_key":
+                            correct_key = attribute["value"]
+                time.sleep(20)
+                counter += 1
+            if not correct_key:
+                return {"status": "error", "payload": {"error": "startup_key not found", "traceback": "".join(traceback.format_stack())}}
             url = "https://"+self.dnsName+"/srv/validateInstance"
-            files = {'fUploader': open(str(self.pempath), 'rb')}
-            r = requests.post(url, files=files)
+            r = requests.post(url, json = {"key": correct_key})
             jar = r.cookies
+            print("r: ", r)
+            print("r.text: ", r.text)
             values = json.loads(r.text)
             if "error" in values:
                 return {'status': 'error', 'payload': {"error": values["error"], "traceback": ''.join(traceback.format_stack())}}
@@ -95,6 +112,7 @@ class CloudyCluster(Environment):
         else:
             print("Successfully started the creation of the Control Resources. Now monitoring to determine when the resources are up and running.")
             resourceId = values['payload']
+            instanceName = values["instanceName"]
             if str(self.cloudType) == "aws":
                 f = open('infoFile', 'w')
                 f.write("controlResources="+str(resourceId)+"\n")
@@ -142,7 +160,7 @@ class CloudyCluster(Environment):
                             return {"status": "error", "payload": values['payload']}
                         else:
                             print("Successfully obtained the newly created Database Table names.")
-                            stuff = self.validateControl()
+                            stuff = self.validateControl(resourceClass, instanceName)
                             if stuff["status"] != "success":
                                 if "File failed to validate" in str(stuff['payload']['error']):
                                     return {"status": "error", "payload": {"error": "The .pem key file location specified in the configuration file does not match the .pem key file used to launch the instances. Please check the key and try again.", "traceback": ''.join(traceback.format_stack())}}
@@ -234,13 +252,7 @@ class CloudyCluster(Environment):
             if response['status'] != "success":
                 return {"status": "error", "payload": {"error": response['message'], "traceback": ''.join(traceback.format_stack())}}
             else:
-                # We have successfully deleted the DB tables now we need to delete the Control Resource
-                values = resourceClass.deleteControlResources(self.controlResourceName)
-                if values['status'] != "success":
-                    return {"status": "error", "payload": values['payload']}
-                else:
-                    # We have successfully deleted the Control Resources
-                    return {"status": "success", "payload": "The Control Resources have been deleted successfully."}
+                return {"status": "success", "payload": "The Control Resources have been deleted successfully."}
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error when trying to delete the Control Resources.", "traceback": ''.join(traceback.format_exc(e))}}
 
