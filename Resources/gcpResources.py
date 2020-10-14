@@ -25,6 +25,7 @@ class GcpResources(Resource):
         version = "v1"
         response = self.createClient(service, version)
         if response['status'] != "success":
+            print("createClient failed:", response)
             return {"status": "error"}
         else:
             client = response['payload']
