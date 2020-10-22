@@ -514,8 +514,10 @@ def main():
                     kwargs = {"name": tempObj['name'], "options": tempObj['options'], "schedulerType": tempObj['options']['schedulerType'], "environment": environment}
                     import jobScript
                     newJobScript = jobScript.JobScript(**kwargs)
+                    print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
                     if values['status'] != "success":
+                        print("values: ", values)
                         jobName = values['jobId']
                         enviroName = values['environment']
                         moosage = "Your Environment: " + enviroName + "\nYour job ID: " + jobName + "\nThe execution of the jobscript : " + str(jobToRun) + " failed."; print(moosage)

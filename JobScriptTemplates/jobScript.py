@@ -137,8 +137,8 @@ class JobScript(object):
             while int(channelLength) != 0:
                 receivedStdout = channel.recv(receiveWindowSize)
                 receivedStderr = channel.recv_stderr(receiveWindowSize)
-                stdout.append(receivedStdout)
-                stderr.append(receivedStderr)
+                stdout.append(receivedStdout.decode())
+                stderr.append(receivedStderr.decode())
                 channelLength = len(receivedStdout)
             while not channel.exit_status_ready():
                 time.sleep(5)
@@ -189,6 +189,7 @@ class JobScript(object):
             # Do stuff for uploading via sftp
             # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
             values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
+            print("values under createConnection:")
             if values['status'] != "success":
                 return values
             else:
@@ -196,6 +197,7 @@ class JobScript(object):
 
                 # Create the sftp session for uploading via sftp
                 values = self.createSftpSession(transport)
+                print("values under createSftpSession:", values)
                 if values['status'] != "success":
                     return values
                 else:
@@ -203,7 +205,7 @@ class JobScript(object):
                     # Upload the job script to the server
                     try:
                         fileInfo = sftpSession.put(self.options['localPath'], self.options['remotePath'])
-                        #print("Printing for debugging: " + str(fileInfo))
+                        print("fileInfo:", fileInfo)
                         return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
                     except Exception as e:
                         return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
