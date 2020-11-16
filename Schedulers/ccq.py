@@ -144,7 +144,7 @@ class Ccq(Scheduler):
         dateExpires = ""
         certLength = 1
 
-        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": False, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(apiKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": environment.userName, "databaseInfo": None}
+        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": False, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), "schedulerHostName": None, 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, "printJobOwner": "False", "printSubmissionTime": "False", "printDispatchTime": "False", "printSubmitHost": "False", "printNumCPUs": "False", 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(apiKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": environment.userName, "databaseInfo": None}
 
         ccqstatURL = "https://" + str(loginDNS) + "/srv/ccqstat"
         results = requests.post(ccqstatURL, cookies=environment.sessionCookies, json=final)
@@ -153,9 +153,10 @@ class Ccq(Scheduler):
         if jobOutput['status'] == "success":
             # Check and make sure the job was not deleted at some point
             if "The specified job Id does not exist in the database." not in str(jobOutput['payload']['message']):
-                splitText = jobOutput['payload']['message'].split(" ")
-                jobState = splitText[len(splitText)-1].replace("\n", "")
-                return {"status": "success", "payload": jobState}
+                splitText = jobOutput['payload']['message'].split("\n")[2].split()
+                jobState = splitText[4].replace("\n", "")
+                jobName = splitText[1].replace("\n", "")
+                return {"status": "success", "payload": {"jobState": jobState, "jobName": jobName}}
             else:
                 return {"status": "error", "payload": "The job no longer exists within ccq, it was probably deleted by someone using the ccqdel command within the CloudyCluster Environments."}
         else:

@@ -166,15 +166,15 @@ class JobScript(object):
             if values['status'] != "success":
                 return values
             else:
-                if values['payload'] != "Running" or values['payload'] != "Submitted":
+                if values["payload"]["jobState"] != "Running" or values["payload"]["jobState"] != "Submitted":
                     # The job is no longer running and we need to take action accordingly
-                    if values['payload'] == "Error":
+                    if values["payload"]["jobState"] == "Error":
                         # TODO implement the job error printing
                         return {"status": "error", "payload": {"error": "There was an error encountered when attempting to run the job. Please check the CloudyCluster UI for more information. This information can be found under the Administration Tab -> Errors.", "traceback": ''.join(traceback.format_stack())}}
-                    elif values['payload'] == "Killed":
+                    elif values["payload"]["jobState"] == "Killed":
                         return {"status": "error", "payload": {"error": "The job was killed before it completed successfully. This could be due to a spot instance getting killed.", "traceback": ''.join(traceback.format_stack())}}
-                    elif values['payload'] == "Completed":
-                        return {"status": "success", "payload": "The CCQ job has successfully completed."}
+                    elif values["payload"]["jobState"] == "Completed":
+                        return {"status": "success", "payload": "The CCQ job has successfully completed.", "jobName": values["payload"]["jobName"]}
                     else:
                         print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
                         timeElapsed += 120
@@ -189,7 +189,6 @@ class JobScript(object):
             # Do stuff for uploading via sftp
             # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
             values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
-            print("values under createConnection:")
             if values['status'] != "success":
                 return values
             else:
@@ -197,7 +196,6 @@ class JobScript(object):
 
                 # Create the sftp session for uploading via sftp
                 values = self.createSftpSession(transport)
-                print("values under createSftpSession:", values)
                 if values['status'] != "success":
                     return values
                 else:
@@ -205,7 +203,6 @@ class JobScript(object):
                     # Upload the job script to the server
                     try:
                         fileInfo = sftpSession.put(self.options['localPath'], self.options['remotePath'])
-                        print("fileInfo:", fileInfo)
                         return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
                     except Exception as e:
                         return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
@@ -272,6 +269,32 @@ class JobScript(object):
 
         return {"status": "success", "payload": "Successfully checked the job script parameters."}
 
+    def download(self, jobId, jobName):
+        # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
+        values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
+        if values['status'] != "success":
+            return values
+        else:
+            transport = values['payload']
+
+            # Create the sftp session for uploading via sftp
+            values = self.createSftpSession(transport)
+            if values['status'] != "success":
+                return values
+            else:
+                sftpSession = values['payload']
+                # Download Output's .e and .o files to current directory
+                # Create a wait loop to check if the files are in the current directory
+                try:
+                    fileName = jobName + jobId + ".e"
+                    fileInfo = sftpSession.get(fileName, fileName)
+                    fileName = jobName + jobId + ".o"
+                    fileInfo = sftpSession.get(fileName, fileName)
+                    return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
+                except Exception as e:
+                    return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
+
+
     def processJobScript(self):
         print("Now processing the job script: " + str(self.name))
         values = self.validateJobScriptOptions()
@@ -322,6 +345,7 @@ class JobScript(object):
                                     if str(self.options['monitorJob']).lower() == "true":
                                         # We need to monitor the job and check for it's completion
                                         values = self.monitor(jobId, scheduler, self.environment, schedulerName)
+                                        self.download(jobId, values["jobName"])
                                         #Transfer output files to local if option is selected
                                         ### ********************** ############
                                         # try:

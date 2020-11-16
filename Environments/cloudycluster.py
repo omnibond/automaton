@@ -57,7 +57,6 @@ class CloudyCluster(Environment):
                 request = client.instances().get(project=self.controlParameters['projectid'], zone=self.controlParameters['zone'], instance=instanceName)
                 response = request.execute()
                 metadata = response["metadata"]
-                print("metadata: ", metadata)
                 if "items" in metadata:
                     for attribute in metadata["items"]:
                         if attribute["key"] == "startup_key":
@@ -69,8 +68,6 @@ class CloudyCluster(Environment):
             url = "https://"+self.dnsName+"/srv/validateInstance"
             r = requests.post(url, json = {"key": correct_key})
             jar = r.cookies
-            print("r: ", r)
-            print("r.text: ", r.text)
             values = json.loads(r.text)
             if "error" in values:
                 return {'status': 'error', 'payload': {"error": values["error"], "traceback": ''.join(traceback.format_stack())}}
@@ -451,7 +448,7 @@ class CloudyCluster(Environment):
         dateExpires = ""
         certLength = 1
 
-        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": verbose, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(ccAccessKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": None, "databaseInfo": None}
+        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": verbose, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), "schedulerHostName": None, 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, "printJobOwner": "False", "printSubmissionTime": "False", "printDispatchTime": "False", "printSubmitHost": "False", "printNumCPUs": "False", 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(ccAccessKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": None, "databaseInfo": None}
 
         ccqstatURL = "https://" + str(loginDomainName) + "/srv/ccqstat"
         results = requests.post(ccqstatURL, cookies=self.sessionCookies, json=final)
@@ -800,7 +797,7 @@ class CloudyCluster(Environment):
         else:
             scheduler = values['payload']
 
-        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": verbose, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(ccAccessKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": None, "databaseInfo": None}
+        final = {"jobId": str(jobId), "userName": str(encodedUserName), "password": str(encodedPassword), "verbose": verbose, "instanceId": None, "jobNameInScheduler": None, "schedulerName": str(schedulerName), "schedulerHostName": None, 'schedulerType': None, 'schedulerInstanceId': None, 'schedulerInstanceName': None, 'schedulerInstanceIp': None, "printJobOwner": "False", "printSubmissionTime": "False", "printDispatchTime": "False", "printSubmitHost": "False", "printNumCPUs": "False", 'printErrors': "False", "valKey": str(valKey), "dateExpires": str(dateExpires), "certLength": str(certLength), "jobInfoRequest": False, "ccAccessKey": str(ccAccessKey), "printOutputLocation": "False", "printInstancesForJob": "False", "remoteUserName": None, "databaseInfo": None}
 
         ccqstatURL = "https://" + str(loginDomainName) + "/srv/ccqstat"
         results = requests.post(ccqstatURL, cookies=self.sessionCookies, json=final)
