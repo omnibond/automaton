@@ -287,11 +287,11 @@ class JobScript(object):
                 # Create a wait loop to check if the files are in the current directory
                 try:
                     fileName = jobName + jobId + ".e"
-                    fileInfo = sftpSession.get(fileName, fileName)
+                    sftpSession.get(fileName, fileName)
                     fileName = jobName + jobId + ".o"
-                    fileInfo = sftpSession.get(fileName, fileName)
+                    sftpSession.get(fileName, fileName)
                     return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
-                except Exception as e:
+                except Exception:
                     return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
 
 

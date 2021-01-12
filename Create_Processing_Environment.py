@@ -263,7 +263,6 @@ def main():
                 jobList = []
                 for x in jobsToRun:
                     jobList.append({x: jobsToRun[x]})
-                jobList = sorted(jobList)
                 #print "jobsToRun is "
                 #print jobsToRun
             except Exception as e:
