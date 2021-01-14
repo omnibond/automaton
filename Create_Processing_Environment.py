@@ -85,7 +85,7 @@ def main():
         print("pip install botocore boto3 google-api-python-client paramiko requests")
         print("If you do not have pip installed it can be installed on most Linux Distributions as the python-pip package.")
         print("Please install the required libraries and try again.")
-        sys.exit(0)
+        sys.exit(1)
 
     if environmentType is None:
         # Check and see if there was an argument passed. If there was then we use that as the environment type
@@ -93,7 +93,7 @@ def main():
             environmentType = args[1]
         except Exception as e:
             print("You must specify an environment type when running the ccAutomaton utility. This can be done using the -et argument or by adding the environment type after the command.")
-            sys.exit(0)
+            sys.exit(1)
 
     # Read in configuration values from the ccAutomaton.conf file from the local directory
     parser = configparser.ConfigParser()
@@ -102,7 +102,7 @@ def main():
     except Exception as e:
         print("There was a problem trying to read the configuration file specified.")
         print(''.join(traceback.format_stack()))
-        sys.exit(0)
+        sys.exit(1)
 
     sections = parser.sections()
 
@@ -125,7 +125,7 @@ def main():
     except Exception as e:
         print(''.join(traceback.format_exc(e)))
         print("Unable to find the requested cloud type in the configuration file specified. Please check the file and be sure that there is a cloudtype field in the general section and try again.")
-        sys.exit(0)
+        sys.exit(1)
 
     # Check to see if email is enabled on job fails and cluster fails
     ###TODO Encrypt Password and use username as a key in a seperate file with utility to set it (KBW/JCE)
@@ -153,13 +153,13 @@ def main():
         userName = configurationFileParameters['UserInfo']['username']
     except Exception as e:
         print("Unable to find the username in the configuration file specified. Please check the file and be sure that there is a username field in the UserInfo section and try again.")
-        sys.exit(0)
+        sys.exit(1)
 
     try:
         password = configurationFileParameters['UserInfo']['password']
     except Exception as e:
         print("Unable to find the user password in the configuration file specified. Please check the file and be sure that there is a password field in the UserInfo section and try again.")
-        sys.exit(0)
+        sys.exit(1)
 
     try:
         firstName = configurationFileParameters['UserInfo']['firstname']
@@ -181,7 +181,7 @@ def main():
             environmentName = configurationFileParameters['General']['environmentname']
         except Exception as e:
             print("Unable to find the environment name in the configuration file specified. Please check the file and be sure that there is a environmentname field in the general section and try again.")
-            sys.exit(0)
+            sys.exit(1)
 
     stagesToRun = []
     if doAll:
@@ -222,7 +222,7 @@ def main():
                     dnsName = configurationFileParameters['General']['dnsname']
             except Exception as e:
                 print("Unable to find the DNS name for the Control Resources to be used to fulfill the request. Please check the configuration file and be sure that there is a dnsname field in the general section or specify the DNS name using the -dn commandline argument and try again.")
-                sys.exit(0)
+                sys.exit(1)
 
     # Need to create different environment objects depending on what we are running.
     if "cc" in stagesToRun:
@@ -232,14 +232,14 @@ def main():
         except Exception as e:
             print("controlParameters are "+str(controlParameters))
             print("Unable to find the configuration for the " + str(environmentType) + str(cloudType) + " environment type in the configuration file. Please check and make sure there is a " + str(environmentType) + str(cloudType) + " section in the configuration file and try again.")
-            sys.exit(0)
+            sys.exit(1)
 
         if region is None:
             try:
                 region = configurationFileParameters[str(environmentType) + str(cloudType)]['region']
             except Exception as e:
                 print("Unable to find the region for the Control Resources. Please check the configuration file and be sure that there is a region field in the " + str(environmentType) + str(cloudType) + " section or specify the region using the -r commandline argument and try again.")
-                sys.exit(0)
+                sys.exit(1)
 
     if "ce" in stagesToRun:
         # Check and see if the environment name has been configured in the conf file if not passed in
@@ -247,13 +247,13 @@ def main():
             ccEnvironmentParameters = configurationFileParameters[str(environmentType) + "Environment"]
         except Exception as e:
             print("Unable to find the environment configuration in the configuration file specified. Please check the file and be sure that there is a " + str(environmentType) + "Environment section in the configuration file and try again.")
-            sys.exit(0)
+            sys.exit(1)
 
         try:
             ccEnvironmentParameters['templatename']
         except Exception as e:
             print("Unable to find the template name in the configuration file specified. Please check the file and be sure that there is a templatename field in the " + str(environmentType) + "Environment section in the configuration file and try again.")
-            sys.exit(0)
+            sys.exit(1)
 
     if "rj" in stagesToRun:
         # If the dnsName is None check to see if one is specified in the config file
@@ -267,7 +267,7 @@ def main():
                 #print jobsToRun
             except Exception as e:
                 print("Unable to find the jobs to run. Please check the configuration file and be sure that there is a Computation section or specify the jobs to run using the -jr commandline argument and try again.")
-                sys.exit(0)
+                sys.exit(1)
 
     if "dc" in stagesToRun:
         if "cc" not in stagesToRun:
@@ -277,14 +277,14 @@ def main():
                         controlResourceName = configurationFileParameters['General']['controlresourcename']
                     except Exception as e:
                         print("Unable to find the name for the Control Resources to delete. Please check the configuration file and be sure that there is a controlresourcename field in the General section or specify the name using the -crn commandline argument and try again.")
-                        sys.exit(0)
+                        sys.exit(1)
 
         if region is None:
             try:
                 region = configurationFileParameters[str(environmentType) + str(cloudType)]['region']
             except Exception as e:
                 print("Unable to find the region for the Control Resources. Please check the configuration file and be sure that there is a region field in the " + str(environmentType) + str(cloudType) + " section or specify the region using the -r commandline argument and try again.")
-                sys.exit(0)
+                sys.exit(1)
 
     if "dff" in stagesToRun:
         if region is None:
@@ -292,7 +292,7 @@ def main():
                 region = configurationFileParameters[str(environmentType) + str(cloudType)]['region']
             except Exception as e:
                 print("Unable to find the region for the Control Resources. Please check the configuration file and be sure that there is a region field in the " + str(environmentType) + str(cloudType) + " section or specify the region using the -r commandline argument and try again.")
-                sys.exit(0)
+                sys.exit(1)
 
     # First we need to create the Environment Object that we will be using for the resource/environment/job creation
     kwargs = {"environmentType": str(environmentType), "name": str(environmentName), "cloudType": cloudType, "userName": userName, "password": password, "controlParameters": controlParameters, "ccEnvironmentParameters": ccEnvironmentParameters, "generalParameters": generalParameters, "dnsName": dnsName, "controlResourceName": controlResourceName, "region": region, "profile": profile, "firstName": firstName, "lastName": lastName, "pempath": pempath}
@@ -341,7 +341,7 @@ def main():
                 #if emailParams:
                 #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                 #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(0)
+                sys.exit(1)
             else:
                 print("Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section.")
                 f = open('infoFile', 'a')
@@ -365,7 +365,7 @@ def main():
                 #if emailParams:
                 #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                 #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(0)
+                sys.exit(1)
 
     if "ce" in stagesToRun:
         print("Getting session to Control Resource.")
@@ -388,7 +388,7 @@ def main():
             #if emailParams:
             #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
             #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-            sys.exit(0)
+            sys.exit(1)
         else:
             print("Successfully finished creating the Environment named: " + str(environment.name) + ".")
             f = open('infoFile', 'a')
@@ -404,11 +404,11 @@ def main():
 
         if environmentName is None or str(environmentName) == "":
             print("In order to execute job scripts or workflows on the Environment properly the full Environment name is required. This looks like <environment_name>-XXXX, please specify the full Environment name using the -en commandline argument or by specifying the environmentName field in the General section of the configuration file.")
-            sys.exit(0)
+            sys.exit(1)
 
         if "-" not in str(environmentName):
             print("In order to execute job scripts or workflows on the Environment properly the full Environment name is required. This looks like <environment_name>-XXXX, please specify the full Environment name using the -en commandline argument or by specifying the environmentName field in the General section of the configuration file.")
-            sys.exit(0)
+            sys.exit(1)
 
         for x in range(len(jobList)):
             for jobToRun in jobList[x]:
@@ -419,7 +419,7 @@ def main():
                         tempObj = json.loads(jobList[x][jobToRun])
                     except Exception as e:
                         print("The configuration of the workflow is not in a valid format. Please check the format and try again.")
-                        sys.exit(0)
+                        sys.exit(1)
                     workflowType = tempObj['type']
 
                     # Create the scheduler object that can be used by the workflows
@@ -432,7 +432,7 @@ def main():
                     except Exception as e:
                         print("Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
                         print("The traceback is: " + ''.join(traceback.format_exc()))
-                        sys.exit(0)
+                        sys.exit(1)
 
                     # Create CCQ scheduler object if requsted by workflow
                     ccqScheduler = None
@@ -447,7 +447,7 @@ def main():
                         except Exception as e:
                             print("Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['options']['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
                             print("The traceback is: " + ''.join(traceback.format_exc()))
-                            sys.exit(0)
+                            sys.exit(1)
 
                     # It is a workflow that we will run via the script in the WorkflowTemplates directory
                     kwargs = {"name": tempObj['name'], "wfType": workflowType, "options": tempObj['options'], "schedulerType": tempObj['options']['schedulerType'], "environment": environment, "scheduler": scheduler, "ccq": ccqScheduler}
@@ -458,7 +458,7 @@ def main():
                     except Exception as e:
                         print("Unable to create an instance of the workflow class for the workflow type: " + str(workflowType) + ". Please make sure the workflowType is specified properly.")
                         print("The traceback is: " + ''.join(traceback.format_exc()))
-                        sys.exit(0)
+                        sys.exit(1)
 
                     values = workflow.run()
                     if values['status'] != "success":
@@ -498,7 +498,7 @@ def main():
                         tempObj = json.loads(jobList[x][jobToRun])
                     except Exception as e:
                         print("The configuration of the workflow is not in a valid format. Please check the format and try again.")
-                        sys.exit(0)
+                        sys.exit(1)
 
                     try:
                         schedulerType = tempObj['options']['schedulerType']
@@ -535,7 +535,7 @@ def main():
                         print(values)
                 else:
                     print("No workflow or jobScript found in conf file")
-                    sys.exit(0)
+                    sys.exit(1)
 
     if "de" in stagesToRun:
         print("Getting session to Control Resource.")
@@ -557,7 +557,7 @@ def main():
             #if emailParams:
             #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
             #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-            sys.exit(0)
+            sys.exit(1)
         else:
             print("The Environment named " + str(environment.name) + " have been successfully deleted.")
 
@@ -589,7 +589,7 @@ def main():
     if "dff" in stagesToRun:
         if str(cloudType).lower() != "aws":
             print("Delete from file is not currently implemented for this cloud service.")
-            sys.exit(0)
+            sys.exit(1)
         print("Deleting the Environment and Control Resource")
         environment.name = None
         f = open('infoFile', 'r')
@@ -627,7 +627,7 @@ def main():
                 #if emailParams:
                 #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                 #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(0)
+                sys.exit(1)
             else:
                 print("The Environment named " + str(environmentName) + " have been successfully deleted.")
 

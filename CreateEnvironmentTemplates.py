@@ -55,7 +55,7 @@ def main():
                 templateName = args[1]
             except Exception as e:
                 print("You must specify a template name when running the ccAutomaton Environment Generator utility. This can be done using the -tn argument or by adding the template name type after the command.")
-                sys.exit(0)
+                sys.exit(1)
 
     if environmentType is None:
         # Check and see if there was an argument passed. If there was then we use that as the environment type
@@ -63,7 +63,7 @@ def main():
             environmentType = args[1]
         except Exception as e:
             print("You must specify an environment type when running the ccAutomaton Environment Generator utility. This can be done using the -et argument or by adding the environment type after the command.")
-            sys.exit(0)
+            sys.exit(1)
 
     # If we are just listing or deleting the template(s) then we don't need any of this stuff other than the environment name
     if listTemplates or deleteTemplate:
@@ -94,7 +94,7 @@ def main():
             configFilePath = args[1]
         except Exception as e:
             print("You must specify the path to the conf file when running the ccAutomaton Environment Template Generator utility.  This can be done using the -cf argument.")
-            sys.exit(0)
+            sys.exit(1)
 
     # Read in configuration values from the ccAutomaton.conf file from the local directory
     parser = configparser.ConfigParser()
@@ -116,7 +116,7 @@ def main():
         configurationFileParameters[str(templateName)]
     except Exception as e:
         print("Unable to find the configuration for the " + str(templateName) + " template in the "+str(configFilePath)+ " file. Please check the file and try again.")
-        sys.exit(0)
+        sys.exit(1)
 
     # If GCP check and see if the login node and scheduler names are lower case, if not make them change it, and check to make sure the character length is less than 18.  If it is more than 18, sys exit and make them do it again.
     if str(configurationFileParameters['General']['cloudtype']).lower() == "gcp":
@@ -126,11 +126,11 @@ def main():
                 nameCheck = ast.literal_eval(configurationFileParameters[templateName][i])['name']
                 if len(str(nameCheck)) > 18:
                     print("The name for " + str(i) + " is too many characters.  It needs to be 18 or less.")
-                    sys.exit(0)
+                    sys.exit(1)
                 for letter in str(nameCheck):
                     if letter.isupper():
                         print("There is an uppercase letter in your " + str(i) + "'s instance's name.  All letters must be lowercase for gcp.")
-                        sys.exit(0)
+                        sys.exit(1)
 
     kwargs = {"environmentType": environmentType, "parameters": configurationFileParameters[str(templateName)], "templateName": str(templateName)}
     # Load the module (ex: import cloudycluster)
@@ -149,7 +149,7 @@ def main():
     if values['status'] != "success":
         print(values['payload']['error'])
         print(values['payload']['traceback'])
-        sys.exit(0)
+        sys.exit(1)
     else:
         print(values['payload'])
         sys.exit(0)
