@@ -157,10 +157,9 @@ class JobScript(object):
             return {"status": "error", "payload": {"error": "There was a problem closing the connection", "traceback": ''.join(traceback.format_exc())}}
 
     def monitor(self, jobId, scheduler, environment, schedulerName):
-        jobCompleted = False
         timeElapsed = 0
         print("Now monitoring the status of the CCQ job. Your jobID is " + str(jobId))
-        while not jobCompleted:
+        while True:
             print("It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched.")
             values = scheduler.getJobStatus(environment, jobId, schedulerName, self.loginDNS)
             if values['status'] != "success":
@@ -300,71 +299,53 @@ class JobScript(object):
         values = self.validateJobScriptOptions()
         if values['status'] != "success":
             return values
+
+        # We will need to obtain the Login Instance's DNS name in order to submit the job via the web or commandline
+        if self.loginDNS is None:
+            values = self.environment.getJobSubmitDns()
+            if values['status'] != "success":
+                return values
+            self.loginDNS = values['payload']
+
+        # We have validated the parameters and retrieved the Login Instance DNS name. Moving on to actually uploading and submitting the job script.
+        if not self.options['uploadScript']:
+            return
+        values = self.upload()
+        if values['status'] != "success":
+            return values
+
+        # We successfully uploaded the file now we need to create a scheduler object based on the type of scheduler we are submitting to.
+        values = self.environment.createSchedulerClass(self.options['schedulerType'])
+        if values['status'] != "success":
+            return values
+        scheduler = values['payload']
+        values = scheduler.getOrGenerateApiKey(self.environment)
+        if values['status'] != "success":
+            return values
+
+        # Now that we have the correct authorization api key we can create the connection to the login instance and submit the job via the commandline or the web interface.
+        values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
+        if values['status'] != "success":
+            return values
+        transport = values['payload']
+        values = scheduler.submitJobCommandLine(transport, self.options['remotePath'], self)
+        if values['status'] != "success":
+            return values
+        # We have successfully submitted the job, now we need to monitor the job if specified by the user
+        print(values['payload'])
+        jobId = values['payload']['jobId']
+        schedulerName = values['payload']['schedulerName']
+
+        # Now we monitor the job unless the user expressly states they do not want to monitor the job.
+        if str(self.options['monitorJob']).lower() != "true":
+            # The user chose not to monitor the job so we declare success and move on to processing the next jobscript
+            return {"status": "success", "payload": "The jobscript has been successfully submitted to the environment."}
         else:
-            # We will need to obtain the Login Instance's DNS name in order to submit the job via the web or commandline
-            if self.loginDNS is None:
-                values = self.environment.getJobSubmitDns()
-                if values['status'] != "success":
-                    return values
-                else:
-                    loginDns = values['payload']
-                    self.loginDNS = loginDns
+            # We need to monitor the job and check for it's completion
+            values = self.monitor(jobId, scheduler, self.environment, schedulerName)
+            self.download(jobId, values["jobName"])
 
-            # We have validated the parameters and retrieved the Login Instance DNS name. Moving on to actually uploading and submitting the job script.
-            if self.options['uploadScript']:
-                values = self.upload()
-                if values['status'] != "success":
-                    return values
-                else:
-                    # We successfully uploaded the file now we need to create a scheduler object based on the type of scheduler we are submitting to.
-                    values = self.environment.createSchedulerClass(self.options['schedulerType'])
-                    if values['status'] != "success":
-                        return values
-                    else:
-                        scheduler = values['payload']
-                        values = scheduler.getOrGenerateApiKey(self.environment)
-                        if values['status'] != "success":
-                            return values
-                        else:
-                            # Now that we have the correct authorization api key we can create the connection to the login instance and submit the job via the commandline or the web interface.
-                            values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
-                            if values['status'] != "success":
-                                return values
-                            else:
-                                transport = values['payload']
-                                values = scheduler.submitJobCommandLine(transport, self.options['remotePath'], self)
-                                if values['status'] != "success":
-                                    return values
-                                else:
-                                    # We have successfully submitted the job, now we need to monitor the job if specified by the user
-                                    print(values['payload'])
-                                    jobId = values['payload']['jobId']
-                                    schedulerName = values['payload']['schedulerName']
-
-                                    # Now we monitor the job unless the user expressly states they do not want to monitor the job.
-                                    if str(self.options['monitorJob']).lower() == "true":
-                                        # We need to monitor the job and check for it's completion
-                                        values = self.monitor(jobId, scheduler, self.environment, schedulerName)
-                                        self.download(jobId, values["jobName"])
-                                        #Transfer output files to local if option is selected
-                                        ### ********************** ############
-                                        # try:
-                                        #     if str(self.options['getOutput']).lower() == "true":
-                                        #         # need ssh key key = 
-                                        #         # need to scp files back
-                                        #         # need jobid
-                                        #         # need file path
-                                        #         # need full command line to run locally
-                                        #         commandline = "scp -i " + str(keyPath) + " " + str(self.environment.userName) + "@" + str(ipAddress) + ":~/" + str(outputName) + " /Output/"
-                                        #         response = subprocess.check_output(commandline, shell=True)
-                                        # except Exception as e:
-                                        #     print "There was an error sending the output file back"
-                                        #     print e
-
-                                        # The jobscript has been submitted and completed so we just return the values of the monitoring function
-                                        values['jobId'] = jobId
-                                        values['environment'] = self.environment
-                                        return values
-                                    else:
-                                        # The user chose not to monitor the job so we declare success and move on to processing the next jobscript
-                                        return {"status": "success", "payload": "The jobscript has been successfully submitted to the environment."}
+            # The jobscript has been submitted and completed so we just return the values of the monitoring function
+            values['jobId'] = jobId
+            values['environment'] = self.environment
+            return values
