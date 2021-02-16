@@ -162,16 +162,16 @@ class Ccq(Scheduler):
         else:
             return {"status": "error", "payload": jobOutput['payload']}
 
-    def submitJobCommandLine(self, transport, jobScriptLocation, jobScriptInfo):
+    def submitJobCommandLine(self, jobScriptLocation, jobScriptInfo):
         try:
             file_name = self.apiKey.split(":")[0] + ".key"
 
-            client_session = jobScriptInfo.createSftpSession(transport)["payload"]
+            client_session = jobScriptInfo.createSftpSession()["payload"]
             f = io.StringIO(self.apiKey)
             client_session.putfo(f, file_name)
             client_session.close()
 
-            values = jobScriptInfo.executeCommand(transport, "ccqsub -js " + str(jobScriptLocation) + " -i " + file_name)
+            values = jobScriptInfo.executeCommand("ccqsub -js " + str(jobScriptLocation) + " -i " + file_name)
             if values['status'] != "success":
                 return values
             else:

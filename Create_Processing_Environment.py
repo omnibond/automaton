@@ -27,6 +27,7 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/Environments")
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/WorkflowTemplates"))
 sys.path.append(os.path.dirname(os.path.realpath(__file__))+str("/JobScriptTemplates"))
 
+import jobScript
 
 def main():
     parser = argparse.ArgumentParser(description="A utility that users can utilize to setup and create a CloudyCluster Control Node.")
@@ -410,59 +411,82 @@ def main():
             print("In order to execute job scripts or workflows on the Environment properly the full Environment name is required. This looks like <environment_name>-XXXX, please specify the full Environment name using the -en commandline argument or by specifying the environmentName field in the General section of the configuration file.")
             sys.exit(1)
 
+        jobs = []
+        simultaneous_jobs = []
         for x in range(len(jobList)):
             for jobToRun in jobList[x]:
-                tempObj = {}
-                if "workflow" in jobToRun:
-                    print("Running workflow")
-                    try:
-                        tempObj = json.loads(jobList[x][jobToRun])
-                    except Exception as e:
-                        print("The configuration of the workflow is not in a valid format. Please check the format and try again.")
-                        sys.exit(1)
-                    workflowType = tempObj['type']
+                try:
+                    jobs.append((jobToRun, json.loads(jobList[x][jobToRun])))
+                except json.decoder.JSONDecodeError:
+                    print("The configuration of the job or workflow is not in valid format. Please check the format and try again.")
+                    print("%s is not valid json." % jobList[x][jobToRun])
+                    sys.exit(1)
 
-                    # Create the scheduler object that can be used by the workflows
+        for job in jobs:
+            name = job[0]
+            job = job[1]
+
+            if "workflow" in name:
+                print("Running workflow")
+                workflowType = job['type']
+
+                # Create the scheduler object that can be used by the workflows
+                try:
+                    schedulerModule = __import__(str(job['options']['schedulerType']).lower())
+                    # Get the actual class that we need to instantiate (ex: from cloudycluster import CloudyCluster)
+                    schedulerClass = getattr(schedulerModule, str(job['options']['schedulerType'][0].upper() + job['options']['schedulerType'][1:]))
+                    kwargs = {"schedType": job['options']['schedulerType']}
+                    scheduler = schedulerClass(**kwargs)
+                except Exception as e:
+                    print("Unable to create an instance of the scheduler class for the schedulerType: " + str(job['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
+                    print("The traceback is: " + ''.join(traceback.format_exc()))
+                    sys.exit(1)
+
+                # Create CCQ scheduler object if requsted by workflow
+                ccqScheduler = None
+                if str(job['options']['useCCQ']).lower() == "true":
+                    schedType = "ccq"
                     try:
-                        schedulerModule = __import__(str(tempObj['options']['schedulerType']).lower())
+                        ccqSchedulerModule = __import__(schedType)
                         # Get the actual class that we need to instantiate (ex: from cloudycluster import CloudyCluster)
-                        schedulerClass = getattr(schedulerModule, str(tempObj['options']['schedulerType'][0].upper() + tempObj['options']['schedulerType'][1:]))
-                        kwargs = {"schedType": tempObj['options']['schedulerType']}
-                        scheduler = schedulerClass(**kwargs)
+                        ccqSchedulerClass = getattr(ccqSchedulerModule, str(schedType[0].upper() + schedType[1:]))
+                        kwargs = {"schedType": schedType}
+                        ccqScheduler = ccqSchedulerClass(**kwargs)
                     except Exception as e:
-                        print("Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
+                        print("Unable to create an instance of the scheduler class for the schedulerType: " + str(job['options']['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
                         print("The traceback is: " + ''.join(traceback.format_exc()))
                         sys.exit(1)
 
-                    # Create CCQ scheduler object if requsted by workflow
-                    ccqScheduler = None
-                    if str(tempObj['options']['useCCQ']).lower() == "true":
-                        schedType = "ccq"
-                        try:
-                            ccqSchedulerModule = __import__(schedType)
-                            # Get the actual class that we need to instantiate (ex: from cloudycluster import CloudyCluster)
-                            ccqSchedulerClass = getattr(ccqSchedulerModule, str(schedType[0].upper() + schedType[1:]))
-                            kwargs = {"schedType": schedType}
-                            ccqScheduler = ccqSchedulerClass(**kwargs)
-                        except Exception as e:
-                            print("Unable to create an instance of the scheduler class for the schedulerType: " + str(tempObj['options']['schedulerType']) + ". Please make sure the schedulerType is specified properly.")
-                            print("The traceback is: " + ''.join(traceback.format_exc()))
-                            sys.exit(1)
+                # It is a workflow that we will run via the script in the WorkflowTemplates directory
+                kwargs = {"name": job['name'], "wfType": workflowType, "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment, "scheduler": scheduler, "ccq": ccqScheduler}
+                try:
+                    module = __import__(str(workflowType))
+                    workflowClass = getattr(module, str(workflowType[0].upper() + workflowType[1:]))
+                    workflow = workflowClass(**kwargs)
+                except Exception as e:
+                    print("Unable to create an instance of the workflow class for the workflow type: " + str(workflowType) + ". Please make sure the workflowType is specified properly.")
+                    print("The traceback is: " + ''.join(traceback.format_exc()))
+                    sys.exit(1)
 
-                    # It is a workflow that we will run via the script in the WorkflowTemplates directory
-                    kwargs = {"name": tempObj['name'], "wfType": workflowType, "options": tempObj['options'], "schedulerType": tempObj['options']['schedulerType'], "environment": environment, "scheduler": scheduler, "ccq": ccqScheduler}
+                values = workflow.run()
+                if values['status'] != "success":
+                    print("The execution of the workflow %s failed." % name)
                     try:
-                        module = __import__(str(workflowType))
-                        workflowClass = getattr(module, str(workflowType[0].upper() + workflowType[1:]))
-                        workflow = workflowClass(**kwargs)
+                        error = values['payload']['error']; print(error)
                     except Exception as e:
-                        print("Unable to create an instance of the workflow class for the workflow type: " + str(workflowType) + ". Please make sure the workflowType is specified properly.")
-                        print("The traceback is: " + ''.join(traceback.format_exc()))
-                        sys.exit(1)
-
-                    values = workflow.run()
+                        error = "N/A"
+                    try:
+                        traceb = values['payload']['traceback']; print(traceb)
+                    except Exception as e:
+                        traceb = "N/A"
+                    #if emailParams:
+                    #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                else:
+                    # The return from the run() method should provide a payload field that provides the arguments for the monitor method
+                    values = workflow.monitor(**values['payload'])
                     if values['status'] != "success":
-                        moosage = "The execution of the workflow: " + str(jobToRun) + " failed."; print(moosage)
+                        print("The execution of the workflow %s failed." % name)
                         try:
                             error = values['payload']['error']; print(error)
                         except Exception as e:
@@ -474,68 +498,85 @@ def main():
                         #if emailParams:
                         #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                         #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                    else:
-                        # The return from the run() method should provide a payload field that provides the arguments for the monitor method
-                        values = workflow.monitor(**values['payload'])
-                        if values['status'] != "success":
-                            moosage = "The monitoring of the workflow: " + str(jobToRun) + " failed."; print(moosage)
-                            try:
-                                error = values['payload']['error']; print(error)
-                            except Exception as e:
-                                error = "N/A"
-                            try:
-                                traceb = values['payload']['traceback']; print(traceb)
-                            except Exception as e:
-                                traceb = "N/A"
-                            #if emailParams:
-                            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
 
-                elif "jobscript" in jobToRun:
-                    print("Running jobScript")
-                    tempObj = {}
-                    try:
-                        tempObj = json.loads(jobList[x][jobToRun])
-                    except Exception as e:
-                        print("The configuration of the workflow is not in a valid format. Please check the format and try again.")
-                        sys.exit(1)
+            elif "jobscript" in name:
+                print("Running jobScript")
 
-                    try:
-                        schedulerType = tempObj['options']['schedulerType']
-                        schedulerOptions = ""
-                        if str(schedulerType).lower() not in environment.supportedSchedulers:
-                            for scheduler in environment.supportedSchedulers:
-                                schedulerOptions += str(scheduler)
-                            return {"status": "error", "payload": {"error": "The scheduler type specified is not supported. Please choose one of the following scheduler types: " + str(schedulerOptions)}}
-                    except Exception as e:
-                        tempObj['options']['schedulerType'] = "ccq"
+                try:
+                    schedulerType = job['options']['schedulerType']
+                    schedulerOptions = ""
+                    if str(schedulerType).lower() not in environment.supportedSchedulers:
+                        for scheduler in environment.supportedSchedulers:
+                            schedulerOptions += str(scheduler)
+                        return {"status": "error", "payload": {"error": "The scheduler type specified is not supported. Please choose one of the following scheduler types: " + str(schedulerOptions)}}
+                except Exception as e:
+                    job['options']['schedulerType'] = "ccq"
 
-                    kwargs = {"name": tempObj['name'], "options": tempObj['options'], "schedulerType": tempObj['options']['schedulerType'], "environment": environment}
-                    import jobScript
+                jobMonitor = job["options"]["monitorJob"]
+                if "true" in str(jobMonitor).lower():
+                    kwargs = {"name": job['name'], "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment}
                     newJobScript = jobScript.JobScript(**kwargs)
                     print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
-                    if values['status'] != "success":
-                        print("values: ", values)
-                        jobName = values['jobId']
-                        enviroName = values['environment']
-                        moosage = "Your Environment: " + enviroName + "\nYour job ID: " + jobName + "\nThe execution of the jobscript : " + str(jobToRun) + " failed."; print(moosage)
-                        try:
-                            error = values['payload']['error']; print(error)
-                        except Exception as e:
-                            error = "N/A"
-                        try:
-                            traceb = values['payload']['traceback']; print(traceb)
-                        except Exception as e:
-                            traceb = "N/A"
-                        #if emailParams:
-                        #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                        #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                    else:
-                        print(values)
+                elif "false" in str(jobMonitor).lower():
+                    simultaneous_jobs.append(job)
+
+                if values['status'] != "success":
+                    print("values: ", values)
+                    jobName = values['jobId']
+                    enviroName = values['environment']
+                    print("Your Environment: %s \nYour job ID: %s \nThe execution of the jobscript: %s failed." % (enviroName, jobName, job["name"]))
+                    try:
+                        error = values['payload']['error']; print(error)
+                    except Exception as e:
+                        error = "N/A"
+                    try:
+                        traceb = values['payload']['traceback']; print(traceb)
+                    except Exception as e:
+                        traceb = "N/A"
+                    #if emailParams:
+                    #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                    #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                 else:
-                    print("No workflow or jobScript found in conf file")
-                    sys.exit(1)
+                    print(values)
+            else:
+                print("No workflow or jobScript found in conf file")
+                sys.exit(1)
+
+        # at this point simultaneous_jobs is the list of jobs that we submit together
+        # so it's time to submit them all
+        jobIdDict = {}
+        done = 0
+        for job in simultaneous_jobs:
+            kwargs = {"name": job['name'], "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment}
+            newJobScript = jobScript.JobScript(**kwargs)
+            print("newJobScript: ", newJobScript)
+            values = newJobScript.processJobScript()
+            jobIdDict[values["jobId"]] = newJobScript
+
+        while done < len(simultaneous_jobs):
+            time.sleep(4)
+            to_remove = []
+            for jobId in jobIdDict:
+                complete, name = jobIdDict[jobId].is_complete(jobId, environment)
+                if complete:
+                    jobIdDict[jobId].download(jobId, name)
+                    done += 1
+                    to_remove.append(jobId)
+            for jobId in to_remove:
+                del jobIdDict[jobId]
+
+            if done == 1:
+                print("%d job is done." % done)
+            elif done > 1:
+                print("%d jobs are done" % done)
+            else:
+                print("No jobs are done")
+                        
+        # monitor jobIds in jobIdDict
+        # at this point they should've been submitted and we have to get all the ids and monitor them
+        # so we don't get to delete until they've finished running
+        # and of course we have to check on their status (Completed) and copy output
 
     if "de" in stagesToRun:
         print("Getting session to Control Resource.")
@@ -654,3 +695,4 @@ def main():
 
 
 main()
+

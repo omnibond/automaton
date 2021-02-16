@@ -30,7 +30,7 @@ class JobScript(object):
     def createConnection(self, host, username, password, mfaToken, private_key):
         # TODO Need to implement the automated entry of the MFA token to make sure that this works with MFA but it should handle it.
         ssh_client = None
-        transport = None
+        self.transport = None
         sock = None
         port = 22
         if ':' in host:
@@ -53,9 +53,9 @@ class JobScript(object):
                     sock.connect((host, port))
                 except Exception as e:
                     print(('Connect failed: ' + str(e)))
-                transport = paramiko.Transport(sock)
+                self.transport = paramiko.Transport(sock)
                 try:
-                    transport.start_client()
+                    self.transport.start_client()
                 except paramiko.SSHException:
                     print('*** SSH negotiation failed.')
 
@@ -70,11 +70,11 @@ class JobScript(object):
                     except Exception as e:
                         print(e.message)
 
-                if not transport.is_authenticated():
-                    transport.auth_interactive(username, handler)
-                if not transport.is_authenticated():
+                if not self.transport.is_authenticated():
+                    self.transport.auth_interactive(username, handler)
+                if not self.transport.is_authenticated():
                     print('*** Authentication failed.')
-                    transport.close()
+                    self.transport.close()
         except paramiko.AuthenticationException as e:
             print("except 1")
             print(e.message)
@@ -86,14 +86,14 @@ class JobScript(object):
             print("except 3")
             print(e.message)
         if not private_key:
-            return {'status': "success", "payload": transport}
+            return {'status': "success"}
         else:
-            transport = ssh_client.get_transport()
-            return {'status': "success", "payload": transport}
+            self.transport = ssh_client.get_transport()
+            return {'status': "success"}
 
-    def createSftpSession(self, transport):
+    def createSftpSession(self):
         try:
-            sftpSession = transport.open_sftp_client()
+            sftpSession = self.transport.open_sftp_client()
             return {"status": "success", "payload": sftpSession}
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was a problem creating the SFTP session.", "traceback": ''.join(traceback.format_exc())}}
@@ -120,8 +120,8 @@ class JobScript(object):
             print(e)
             pass
 
-    def executeCommand(self, transport, command):
-        channel = transport.open_channel("session")
+    def executeCommand(self, command):
+        channel = self.transport.open_channel("session")
         channel.exec_command(command)
         channel.shutdown_write()
         values = self.getCommandOutput(channel)
@@ -183,18 +183,17 @@ class JobScript(object):
                     timeElapsed += 60
                     time.sleep(60)
 
+    def is_complete(self, jobId, environment):
+        values = self.scheduler.getJobStatus(environment, jobId, self.schedulerName, self.loginDNS)
+        return values["payload"]["jobState"] == "Completed", values["payload"]["jobName"]
+
     def upload(self):
         if self.options['uploadProtocol'] == "sftp":
             # Do stuff for uploading via sftp
             # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
-            values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
-            if values['status'] != "success":
-                return values
-            else:
-                transport = values['payload']
 
                 # Create the sftp session for uploading via sftp
-                values = self.createSftpSession(transport)
+                values = self.createSftpSession()
                 if values['status'] != "success":
                     return values
                 else:
@@ -270,28 +269,22 @@ class JobScript(object):
 
     def download(self, jobId, jobName):
         # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
-        values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
+        # Create the sftp session for uploading via sftp
+        values = self.createSftpSession()
         if values['status'] != "success":
             return values
         else:
-            transport = values['payload']
-
-            # Create the sftp session for uploading via sftp
-            values = self.createSftpSession(transport)
-            if values['status'] != "success":
-                return values
-            else:
-                sftpSession = values['payload']
-                # Download Output's .e and .o files to current directory
-                # Create a wait loop to check if the files are in the current directory
-                try:
-                    fileName = jobName + jobId + ".e"
-                    sftpSession.get(fileName, fileName)
-                    fileName = jobName + jobId + ".o"
-                    sftpSession.get(fileName, fileName)
-                    return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
-                except Exception:
-                    return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
+            sftpSession = values['payload']
+            # Download Output's .e and .o files to current directory
+            # Create a wait loop to check if the files are in the current directory
+            try:
+                fileName = jobName + jobId + ".e"
+                sftpSession.get(fileName, fileName)
+                fileName = jobName + jobId + ".o"
+                sftpSession.get(fileName, fileName)
+                return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
+            except Exception:
+                return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
 
 
     def processJobScript(self):
@@ -306,7 +299,11 @@ class JobScript(object):
             if values['status'] != "success":
                 return values
             self.loginDNS = values['payload']
-
+        
+        values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
+        if values['status'] != "success":
+            return values
+        
         # We have validated the parameters and retrieved the Login Instance DNS name. Moving on to actually uploading and submitting the job script.
         if not self.options['uploadScript']:
             return
@@ -324,11 +321,7 @@ class JobScript(object):
             return values
 
         # Now that we have the correct authorization api key we can create the connection to the login instance and submit the job via the commandline or the web interface.
-        values = self.createConnection(self.loginDNS, self.environment.userName, self.environment.password, None, None)
-        if values['status'] != "success":
-            return values
-        transport = values['payload']
-        values = scheduler.submitJobCommandLine(transport, self.options['remotePath'], self)
+        values = scheduler.submitJobCommandLine(self.options['remotePath'], self)
         if values['status'] != "success":
             return values
         # We have successfully submitted the job, now we need to monitor the job if specified by the user
@@ -336,10 +329,16 @@ class JobScript(object):
         jobId = values['payload']['jobId']
         schedulerName = values['payload']['schedulerName']
 
+        self.scheduler = scheduler
+        self.schedulerName = schedulerName
         # Now we monitor the job unless the user expressly states they do not want to monitor the job.
         if str(self.options['monitorJob']).lower() != "true":
             # The user chose not to monitor the job so we declare success and move on to processing the next jobscript
-            return {"status": "success", "payload": "The jobscript has been successfully submitted to the environment."}
+            values = {"status": "success", "payload": "The jobscript has been successfully submitted to the environment."}
+            values['jobId'] = jobId
+            values['environment'] = self.environment
+            return values
+
         else:
             # We need to monitor the job and check for it's completion
             values = self.monitor(jobId, scheduler, self.environment, schedulerName)
@@ -349,3 +348,4 @@ class JobScript(object):
             values['jobId'] = jobId
             values['environment'] = self.environment
             return values
+
