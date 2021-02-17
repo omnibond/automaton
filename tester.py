@@ -45,25 +45,26 @@ project_name = ""
 sourceimage = ""
 service_account = ""
 
-job_path = os.getcwd() + "/test.sh"
+def main():
+    job_path = os.getcwd() + "/test.sh"
 
-os.chdir("..")
+    os.chdir("..")
 
-os.chdir("CloudyCluster/Build")
-current_build = run(["git", "describe", "--always"], 0).strip()
-compute = googleapiclient.discovery.build("compute", "v1")
-images = compute.images().list(project=project_name).execute()
-image_id = None
-for image in images["items"]:
-    if ("%stest" % username) in image["name"] and current_build in image["name"]:
-        image_id = image["name"]
+    os.chdir("CloudyCluster/Build")
+    current_build = run(["git", "describe", "--always"], 0).strip()
+    compute = googleapiclient.discovery.build("compute", "v1")
+    images = compute.images().list(project=project_name).execute()
+    image_id = None
+    for image in images["items"]:
+        if ("%stest" % username) in image["name"] and current_build in image["name"]:
+            image_id = image["name"]
 
-if image_id:
-    image = image_id
-    print("Using image %s" % (image))
-else:
-    f = open("test.yaml", "w")
-    f.write(f"""- start:
+    if image_id:
+        image = image_id
+        print("Using image %s" % (image))
+    else:
+        f = open("test.yaml", "w")
+        f.write(f"""- start:
   - local: false
   - sshkeyname: builderdash
   - sshkeyuser: builderdash
@@ -91,43 +92,43 @@ else:
   - builderdash:
     - build.yaml
 """)
+        f.close()
+        build = run(["python3", "builderdash.py", "-c", "test.yaml"], 900)
+        build = build.split("\n")
+        image = None
+        for line in build:
+            if line.startswith("the instance we're going to delete is"):
+                image = line.split(":")[1][1:]
+        if not image:
+            print("There's an error!")
+            sys.exit(1)
+
+    os.chdir("../..")
+
+    ready = False
+    while not ready:
+        compute_client = googleapiclient.discovery.build("compute", "v1")
+        request = compute_client.images().get(project=project_name, image=image)
+        res = request.execute()
+        if res["status"] != "READY":
+            time.sleep(30)
+        else:
+            ready = True
+
+    f = open(job_path, "w")
+    f.write("""#!/bin/sh
+    #SBATCH -N 1
+    date
+    hostname
+    """)
     f.close()
-    build = run(["python3", "builderdash.py", "-c", "test.yaml"], 900)
-    build = build.split("\n")
-    image = None
-    for line in build:
-        if line.startswith("the instance we're going to delete is"):
-            image = line.split(":")[1][1:]
-    if not image:
-        print("There's an error!")
-        sys.exit(1)
 
-os.chdir("../..")
+    password = os.urandom(16).hex()
+    print("cluster username", username)
+    print("cluster password", password)
 
-ready = False
-while not ready:
-    compute_client = googleapiclient.discovery.build("compute", "v1")
-    request = compute_client.images().get(project=project_name, image=image)
-    res = request.execute()
-    if res["status"] != "READY":
-        time.sleep(30)
-    else:
-        ready = True
-
-f = open(job_path, "w")
-f.write("""#!/bin/sh
-#SBATCH -N 1
-date
-hostname
-""")
-f.close()
-
-password = os.urandom(16).hex()
-print("cluster username", username)
-print("cluster password", password)
-
-f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
-f.write(f"""[UserInfo]
+    f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
+    f.write(f"""[UserInfo]
 userName: {username}
 password: {password}
 firstName: {username}
@@ -183,12 +184,27 @@ filesystem1: {{"numberOfInstances": 4, "instanceType": "g1-small", "name": "oran
 login1: {{'name': 'login', 'instanceType': 'g1-small'}}
 nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 """)
-f.close()
+    f.close()
 
-os.chdir("automaton")
+    os.chdir("automaton")
 
-creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], 30)
-print("created template:", creating_templates)
+    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], 30)
+    print("created template:", creating_templates)
 
-running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], None)
-print("automaton run:", running_automaton)
+    running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], None)
+    print("automaton run:", running_automaton)
+
+    output_info = running_automaton.split("\n")
+    jobId = []
+    for line in output_info:
+        if line.startswith("Now monitoring the status of the CCQ job. Your jobID is"):
+            jobId.append(line.split(" "))
+    print("jobId: ", jobId)
+
+    #for item in jobId:
+     #   print("test.sh", item)
+    # Need output of .e and .o for each job
+    # Cleanup if errored, save output, indicate about what broke(i.e CC, Automaton, ccq)
+
+if __name__ == "__main__":
+    main()
