@@ -1,12 +1,14 @@
 import configparser
 import os
+import select
+import signal
 import sys
 import termios
 import time
 
 import googleapiclient.discovery
 
-def run(args, timeout):
+def run(args, timeout=0, die=True):
     print("running command %s" % args)
     start = time.time()
     # Use a pty so that commands which call isatty don't change behavior.
@@ -18,27 +20,40 @@ def run(args, timeout):
         t[1] = t[1] & ~termios.ONLCR
         termios.tcsetattr(fd, termios.TCSANOW, t)
     buffer = b""
+    expired = False
     while True:
         # A pty master returns EIO when the slave is closed.
         try:
-            new = os.read(fd, 1024)
+            rlist, wlist, xlist = select.select([fd], [], [], 5)
+            if len(rlist):
+                new = os.read(fd, 1024)
+            else:
+                if timeout and time.time() > start + timeout:
+                    expired = True
+                else:
+                    continue
         except OSError:
             new = b""
-        if len(new) == 0:
+        if expired or len(new) == 0:
             break
         sys.stdout.buffer.write(new)
         sys.stdout.flush()
         buffer = buffer + new
+    if expired:
+        print(f"time limit of {timeout} expired")
+    # This will also send SIGHUP to the child process.
     os.close(fd)
     pid, status = os.waitpid(pid, 0)
-    if status != 0:
-        end = time.time()
-        final_time = end - start
-        print("It returned a %d exit status. It took %d seconds to end" % (status, final_time))
-        sys.exit(1)
     end = time.time()
     final_time = end - start
-    print("It took %d seconds to complete" % final_time)
+    if os.WIFEXITED(status):
+        status = os.WEXITSTATUS(status)
+        print(f"process returned {status} after {final_time} seconds")
+    else:
+        status = os.WTERMSIG(status)
+        print(f"process died from signal {status} after {final_time} seconds")
+    if die and (status != 0 or expired):
+        sys.exit(1)
     buffer = buffer.decode()
     return buffer
 
@@ -76,7 +91,7 @@ def main():
     os.chdir("..")
 
     os.chdir("CloudyCluster/Build")
-    current_build = run(["git", "describe", "--always"], 0).strip()
+    current_build = run(["git", "describe", "--always"]).strip()
     compute = googleapiclient.discovery.build("compute", "v1")
     images = compute.images().list(project=project_name).execute()
     image_id = None
@@ -118,7 +133,7 @@ def main():
     - build.yaml
 """)
         f.close()
-        build = run(["python3", "builderdash.py", "-c", "test.yaml"], 900)
+        build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)
         build = build.split("\n")
         image = None
         for line in build:
@@ -213,10 +228,10 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     os.chdir("automaton")
 
-    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], 30)
+    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)
     print("created template:", creating_templates)
 
-    running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], None)
+    running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"])
     print("automaton run:", running_automaton)
 
     output_info = running_automaton.split("\n")
