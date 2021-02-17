@@ -1,7 +1,9 @@
+import configparser
 import os
 import sys
 import termios
 import time
+
 import googleapiclient.discovery
 
 def run(args, timeout):
@@ -40,12 +42,35 @@ def run(args, timeout):
     buffer = buffer.decode()
     return buffer
 
-username = ""
-project_name = ""
-sourceimage = ""
-service_account = ""
-
 def main():
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        filename = "tester.config"
+
+    try:
+        os.stat("tester.ini")
+    except FileNotFoundError:
+        print("configuration file tester.ini not found")
+        sys.exit(1)
+
+    cp = configparser.ConfigParser()
+    cp.read(filename)
+
+    try:
+        username = cp.get("tester", "username")
+        project_name = cp.get("tester", "project_name")
+        sourceimage = cp.get("tester", "sourceimage")
+        service_account = cp.get("tester", "service_account")
+        ssh_private_key = cp.get("tester", "ssh_private_key")
+        ssh_public_key = cp.get("tester", "ssh_public_key")
+    except configparser.NoSectionError:
+        print("missing configuration section")
+        sys.exit(1)
+    except configparser.NoOptionError:
+        print("missing configuration option")
+        sys.exit(1)
+
     job_path = os.getcwd() + "/test.sh"
 
     os.chdir("..")
@@ -69,8 +94,8 @@ def main():
   - sshkeyname: builderdash
   - sshkeyuser: builderdash
 # ssh-keygen -m pem -f builderdash.pem -C builderdash
-  - sshkey: /home/{username}/builderdash.pem
-  - pubkeypath: /home/{username}/builderdash.pem.pub
+  - sshkey: {ssh_private_key}
+  - pubkeypath: {ssh_public_key}
   - spot: no
   - cloudservice: gcp
   - instancetype: n1-standard-32
@@ -133,7 +158,7 @@ userName: {username}
 password: {password}
 firstName: {username}
 LastName:
-pempath: /home/{username}/.ssh/id_rsa
+pempath: {ssh_private_key}
 
 [General]
 environmentName: {username}
@@ -149,7 +174,7 @@ instanceType: g1-small
 networkCidr: 0.0.0.0/0
 region: us-east1
 zone: us-east1-b
-pubkeypath: /home/{username}/.ssh/id_rsa.pub
+pubkeypath: {ssh_public_key}
 sshkeyuser: {username}
 sourceimage: projects/{project_name}/global/images/{image}
 
