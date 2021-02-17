@@ -49,9 +49,9 @@ def main():
         filename = "tester.config"
 
     try:
-        os.stat("tester.ini")
+        os.stat(filename)
     except FileNotFoundError:
-        print("configuration file tester.ini not found")
+        print(f"configuration file {filename} not found")
         sys.exit(1)
 
     cp = configparser.ConfigParser()
