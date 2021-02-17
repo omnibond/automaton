@@ -157,10 +157,10 @@ def main():
 
     f = open(job_path, "w")
     f.write("""#!/bin/sh
-    #SBATCH -N 1
-    date
-    hostname
-    """)
+#SBATCH -N 1
+date
+hostname
+""")
     f.close()
 
     password = os.urandom(16).hex()
