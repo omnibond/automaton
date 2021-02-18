@@ -546,6 +546,8 @@ def main():
         # at this point simultaneous_jobs is the list of jobs that we submit together
         # so it's time to submit them all
         jobIdDict = {}
+        timeoutMax = -1
+        timeElapsed = 0
         done = 0
         for job in simultaneous_jobs:
             kwargs = {"name": job['name'], "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment}
@@ -553,18 +555,28 @@ def main():
             print("newJobScript: ", newJobScript)
             values = newJobScript.processJobScript()
             jobIdDict[values["jobId"]] = newJobScript
+            if job["options"]["timeout"] == 0:
+                timeoutMax = 0
+            if timeoutMax and job["options"]["timeout"] > timeoutMax:
+                timeoutMax = job["options"]["timeout"]
 
         while done < len(simultaneous_jobs):
-            time.sleep(4)
-            to_remove = []
-            for jobId in jobIdDict:
-                complete, name = jobIdDict[jobId].is_complete(jobId, environment)
-                if complete:
-                    jobIdDict[jobId].download(jobId, name)
-                    done += 1
-                    to_remove.append(jobId)
-            for jobId in to_remove:
-                del jobIdDict[jobId]
+            if timeoutMax == 0 or timeoutMax > timeElapsed:
+                timeElapsed += 120
+                time.sleep(120)
+                to_remove = []
+                for jobId in jobIdDict:
+                    complete, name = jobIdDict[jobId].is_complete(jobId, environment)
+                    if complete:
+                        jobIdDict[jobId].download(jobId, name)
+                        done += 1
+                        print("%s job is complete." % (name))
+                        to_remove.append(jobId)
+                for jobId in to_remove:
+                    del jobIdDict[jobId]
+            else:
+                print("The time limit has been reached at %s" % (timeElapsed))
+                sys.exit(1)
 
             if done == 1:
                 print("%d job is done." % done)

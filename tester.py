@@ -208,13 +208,13 @@ az: us-east1-b
 
 #workflow2: {{"name": "gcpLargeRun", "type": "videoAnalyticsPipeline", "options": {{"instanceType": "c2-standard-16", "numberOfInstances": "2", "submitInstantly": "True", "usePreemptibleInstances": "true", "maintainPreemptibleSize": "true", "trafficVisionDir": "/software/trafficvision/", "bucketListFile": "bucket.list", "generatedJobScriptDir": "generated_job_scripts", "trafficVisionExecutable": "process_clip.py", "jobGenerationScript": "generateJobScriptsFromBucketListFile.py", "jobPrefixString": "tv_processing_", "clip_to_start_on": "0", "clip_to_end_on": "1000000", "useCCQ": "true", "schedulerType": "Slurm", "schedulerToUse": "slurm", "skipProvisioning": "true", "timeLimit": "28800", "createPlaceholderInstances": "True"}}}}
 
-jobScript1: {{"name": "testScript1", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
+jobScript1: {{"name": "testScript1", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
 
-jobScript2: {{"name": "testScript2", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
+jobScript2: {{"name": "testScript2", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
 
-jobScript3: {{"name": "testScript3", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
+jobScript3: {{"name": "testScript3", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
 
-jobScript4: {{"name": "testScript4", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
+jobScript4: {{"name": "testScript4", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
 
 [tester_template]
 description: Creates a CloudyCluster Environment that contains a single g1-small CCQ enabled Slurm Scheduler, a g1-small Login instance, a 100GB OrangeFS Filesystem, and a g1-small NAT instance.

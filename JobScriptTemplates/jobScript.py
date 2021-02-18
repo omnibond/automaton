@@ -158,6 +158,7 @@ class JobScript(object):
 
     def monitor(self, jobId, scheduler, environment, schedulerName):
         timeElapsed = 0
+        timeout = self.options['timeout']
         print("Now monitoring the status of the CCQ job. Your jobID is " + str(jobId))
         while True:
             print("It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched.")
@@ -175,9 +176,14 @@ class JobScript(object):
                     elif values["payload"]["jobState"] == "Completed":
                         return {"status": "success", "payload": "The CCQ job has successfully completed.", "jobName": values["payload"]["jobName"]}
                     else:
-                        print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
-                        timeElapsed += 120
-                        time.sleep(120)
+                        if timeout == 0 or timeElapsed < timeout:
+                            timeElapsed += 120
+                            time.sleep(120)
+                            print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
+                        else:
+                            print("The time limit has been reached at %s" % (timeElapsed))
+                            sys.exit(1)
+
                 else:
                     print("The job is still running, waiting one minute before checking the status again.")
                     timeElapsed += 60
