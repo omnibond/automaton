@@ -14,7 +14,11 @@ def run(args, timeout=0, die=True):
     # Use a pty so that commands which call isatty don't change behavior.
     pid, fd = os.forkpty()
     if pid == 0:
-        os.execlp(args[0], *args)
+        try:
+            os.execlp(args[0], *args)
+        except OSError as e:
+            print(e)
+        sys.exit(1)
     else:
         t = termios.tcgetattr(fd)
         t[1] = t[1] & ~termios.ONLCR
