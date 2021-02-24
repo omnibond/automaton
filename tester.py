@@ -234,17 +234,5 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"])
     print("automaton run:", running_automaton)
 
-    output_info = running_automaton.split("\n")
-    jobId = []
-    for line in output_info:
-        if line.startswith("Now monitoring the status of the CCQ job. Your jobID is"):
-            jobId.append(line.split(" "))
-    print("jobId: ", jobId)
-
-    #for item in jobId:
-     #   print("test.sh", item)
-    # Need output of .e and .o for each job
-    # Cleanup if errored, save output, indicate about what broke(i.e CC, Automaton, ccq)
-
 if __name__ == "__main__":
     main()
