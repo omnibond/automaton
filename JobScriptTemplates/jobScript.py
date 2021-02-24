@@ -286,7 +286,9 @@ class JobScript(object):
             try:
                 fileName = jobName + jobId + ".e"
                 sftpSession.get(fileName, fileName)
+                print(f"Downloading {fileName} for job {jobName}")
                 fileName = jobName + jobId + ".o"
+                print(f"Downloading {fileName} for job {jobName}")
                 sftpSession.get(fileName, fileName)
                 return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
             except Exception:

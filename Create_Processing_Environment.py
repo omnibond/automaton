@@ -575,7 +575,7 @@ def main():
                 for jobId in to_remove:
                     del jobIdDict[jobId]
             else:
-                print("The time limit has been reached at %s" % (timeElapsed))
+                print("The time limit has been reached at %s seconds" % (timeElapsed))
                 sys.exit(1)
 
             if done == 1:
