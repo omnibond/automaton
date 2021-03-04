@@ -46,7 +46,7 @@ def main():
     parser.add_argument('-crn', '--controlResourceName', help="The name of the Control Resources that you wish to delete.", default=None)
     parser.add_argument('-r', '--region', help="The region where the Control Resources are located.", default=None)
     parser.add_argument('-p', '--profile', help="The profile to use for the Resource API.", default=None)
-    parser.add_argument('-dff', '--deleteFromFile', help="Deletes your Environment, Control Node, and Control Resources", default=None)
+    parser.add_argument('-dff', '--deleteFromFile', action='store_true', help="Deletes your Environment, Control Node, and Control Resources", default=None)
     args = parser.parse_args()
 
     environmentType = args.environmentType
@@ -318,10 +318,9 @@ def main():
         elif str(cloudType).lower() == "gcp":
             resourceName = str(environment.name) + "-" + str(uuid.uuid4())[:4]
         environment.controlResourceName = resourceName
-        if str(cloudType).lower() == "aws":
-            f = open('infoFile', 'w')
-            f.write("controlResources="+str(resourceName)+"\n")
-            f.close()
+        f = open('infoFile', 'w')
+        f.write("controlResources="+str(resourceName)+"\n")
+        f.close()
 
         # Had to make an alternate path right here for aws and gcp.  The AWS path creates a Cloud Formation Stack using a CFT.  Currently, we don't use anything anagalous to the CFT with GCP, therefore we only need to summon a Control Node.
 
@@ -329,44 +328,31 @@ def main():
             print("Now creating the Control Resources. The Control Resources will be named: " + str(resourceName))
             kwargs = {"templateLocation": environment.controlParameters['templatelocation'], "resourceName": resourceName}
             values = environment.createControl(**kwargs)
-            if values['status'] != "success":
-                moosage = "There was an error creating the Control Resources"; print(moosage)
-                try:
-                    error = values['payload']['error']; print(error)
-                except Exception as e:
-                    error = "N/A"
-                try:
-                    traceb = values['payload']['traceback']; print(traceb)
-                except Exception as e:
-                    traceb = "N/A"
-                #if emailParams:
-                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(1)
-            else:
-                print("Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section.")
-                f = open('infoFile', 'a')
-                f.write('controlDNS='+str(environment.dnsName)+"\n")
-                f.close()
         elif str(cloudType).lower() == "gcp":
             #  Just need instance type and image ID for Google Cloud (JCE)
             print("Now creating the Control Node for Google Cloud")
             kwargs = {"templateLocation": None, "resourceName": resourceName}
             values = environment.createControl(**kwargs)
-            if values['status'] != "success":
-                moosage = "There was an error creating the Control Node"; print(moosage)
-                try:
-                    error = values['payload']['error']; print(error)
-                except Exception as e:
-                    error = "N/A"
-                try:
-                    traceb = values['payload']['traceback']; print(traceb)
-                except Exception as e:
-                    traceb = "N/A"
-                #if emailParams:
-                #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                sys.exit(1)
+
+        if values['status'] != "success":
+            moosage = "There was an error creating the Control Resources"; print(moosage)
+            try:
+                error = values['payload']['error']; print(error)
+            except Exception as e:
+                error = "N/A"
+            try:
+                traceb = values['payload']['traceback']; print(traceb)
+            except Exception as e:
+                traceb = "N/A"
+            #if emailParams:
+            #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+            #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+            sys.exit(1)
+        else:
+            print("Finished creating the Control Resources, the new DNS address is: " + values['payload'] + ". You may now log in with the username/password that were provided in the configuration file in the UserInfo section.")
+            f = open('infoFile', 'a')
+            f.write('controlDNS='+str(environment.dnsName)+"\n")
+            f.close()
 
     if "ce" in stagesToRun:
         print("Getting session to Control Resource.")
@@ -637,12 +623,9 @@ def main():
             if str(cloudType).lower() == "aws":
                 print("The Control Resources named " + str(environment.controlResourceName) + " have been successfully deleted.")
             elif str(cloudType).lower() == "gcp":
-                print("The Control Node was succesfully deleted.")
+                print("The Control Node was successfully deleted.")
 
     if "dff" in stagesToRun:
-        if str(cloudType).lower() != "aws":
-            print("Delete from file is not currently implemented for this cloud service.")
-            sys.exit(1)
         print("Deleting the Environment and Control Resource")
         environment.name = None
         f = open('infoFile', 'r')

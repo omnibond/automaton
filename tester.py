@@ -58,8 +58,12 @@ def run(args, timeout=0, die=True):
         print(f"process died from signal {status} after {final_time} seconds")
     if die and (status != 0 or expired):
         sys.exit(1)
+    elif not die and (status != 0 or expired):
+        fail = True
+    else:
+        fail = False
     buffer = buffer.decode()
-    return buffer
+    return buffer, fail
 
 def main():
     if len(sys.argv) > 1:
@@ -95,7 +99,7 @@ def main():
     os.chdir("..")
 
     os.chdir("CloudyCluster/Build")
-    current_build = run(["git", "describe", "--always"]).strip()
+    current_build = run(["git", "describe", "--always"])[0].strip()
     compute = googleapiclient.discovery.build("compute", "v1")
     images = compute.images().list(project=project_name).execute()
     image_id = None
@@ -137,7 +141,7 @@ def main():
     - build.yaml
 """)
         f.close()
-        build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)
+        build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)[0]
         build = build.split("\n")
         image = None
         for line in build:
@@ -232,11 +236,20 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     os.chdir("automaton")
 
-    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)
+    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)[0]
     print("created template:", creating_templates)
 
-    running_automaton = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"])
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=1200, die=False)
     print("automaton run:", running_automaton)
+
+    if fail:
+        print("There was a problem with the last run of automaton. Initiating a cleanup.")
+        cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
+        print("automaton cleanup:", cleanup_automaton)
+
+        if fail:
+            print("Could not cleanup. You will have to manually delete the created resources.")
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
