@@ -8,6 +8,92 @@ import time
 
 import googleapiclient.discovery
 
+class MPIPreliminaryJob:
+    def __init__(self, n):
+        self.n = n
+
+        self.name = "jobScript%d" % n
+
+    def save_job(self):
+        self.job_path = os.getcwd() + "/test%d.sh" % self.n
+        f = open(self.job_path, "w")
+        f.write("""#!/bin/sh
+#SBATCH -N 1
+cp -Rp /software/samplejobs /mnt/orangefs
+cd /mnt/orangefs/samplejobs/mpi/GCP
+sh mpi_prime_compile.sh
+""")
+        f.close()
+
+    def config(self):
+        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/test{self.n}.sh", "executeDirectory": "/mnt/orangefs"}}}}"""
+
+    def output(self, output, error):
+        pass
+
+    def cleanup_job(self):
+        os.unlink(self.job_path)
+
+class MPIJob:
+    def __init__(self, n, monitor, nodes, processes):
+        self.n = n
+        self.monitor = monitor
+        self.nodes = nodes
+        self.processes = processes
+
+        self.name = "jobScript%d" % n
+
+    def save_job(self):
+        self.job_path = os.getcwd() + "/test%d.sh" % self.n
+        f = open(self.job_path, "w")
+        f.write("""#!/bin/sh
+#SBATCH -N %d
+#SBATCH --ntasks-per-node=%d
+
+export SHARED_FS_NAME=/mnt/orangefs
+
+module add openmpi/3.0.0
+
+cd $SHARED_FS_NAME/samplejobs/mpi
+mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+""" % (self.nodes, self.processes, self.nodes*self.processes))
+        f.close()
+
+    def config(self):
+        if self.monitor:
+            monitor = "true"
+        else:
+            monitor = "false"
+        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/test{self.n}.sh", "executeDirectory": "/mnt/orangefs"}}}}"""
+
+    def output(self, output, error):
+        if error == None or output == None:
+            print("Error: %s does not have the required files for checking output" % self.name)
+        else:
+            f = open(output, "r")
+            lines = list(f)
+            print("lines:", lines)
+            if len(lines) >= 1:
+                if f.startswith("Sorry"):
+                    print("The job was not a success")
+                else:
+                    print("The job %s was a success" % self.name)
+            else:
+                print("There was a problem with the job.")
+            f.close()
+
+            f = open(error, "r")
+            lines = list(f)
+            print("lines:", lines)
+            if len(lines) != 0:
+                print("There was an error in the %s file" % error)
+            else:
+                print("There were no errors found in %s" % self.name)
+            f.close()
+
+    def cleanup_job(self):
+        os.unlink(self.job_path)
+
 def run(args, timeout=0, die=True):
     print("running command %s" % args)
     start = time.time()
@@ -94,8 +180,6 @@ def main():
         print("missing configuration option")
         sys.exit(1)
 
-    job_path = os.getcwd() + "/test.sh"
-
     os.chdir("..")
 
     os.chdir("CloudyCluster/Build")
@@ -163,17 +247,17 @@ def main():
         else:
             ready = True
 
-    f = open(job_path, "w")
-    f.write("""#!/bin/sh
-#SBATCH -N 1
-date
-hostname
-""")
-    f.close()
-
     password = os.urandom(16).hex()
     print("cluster username", username)
     print("cluster password", password)
+
+    jobs = [MPIPreliminaryJob(1), MPIJob(2, True, 2, 2), MPIJob(3, False, 2, 2), MPIJob(4, True, 2, 2), MPIJob(5, False, 2, 2)]
+
+    job_config = ""
+    for job in jobs:
+        job.save_job()
+        job_config = job_config + job.config() + "\n"
+
 
     f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
     f.write(f"""[UserInfo]
@@ -216,13 +300,7 @@ az: us-east1-b
 
 #workflow2: {{"name": "gcpLargeRun", "type": "videoAnalyticsPipeline", "options": {{"instanceType": "c2-standard-16", "numberOfInstances": "2", "submitInstantly": "True", "usePreemptibleInstances": "true", "maintainPreemptibleSize": "true", "trafficVisionDir": "/software/trafficvision/", "bucketListFile": "bucket.list", "generatedJobScriptDir": "generated_job_scripts", "trafficVisionExecutable": "process_clip.py", "jobGenerationScript": "generateJobScriptsFromBucketListFile.py", "jobPrefixString": "tv_processing_", "clip_to_start_on": "0", "clip_to_end_on": "1000000", "useCCQ": "true", "schedulerType": "Slurm", "schedulerToUse": "slurm", "skipProvisioning": "true", "timeLimit": "28800", "createPlaceholderInstances": "True"}}}}
 
-jobScript1: {{"name": "testScript1", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
-
-jobScript2: {{"name": "testScript2", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
-
-jobScript3: {{"name": "testScript3", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
-
-jobScript4: {{"name": "testScript4", "options": {{"uploadProtocol": "sftp", "monitorJob": "false", "timeout": 600, "uploadScript": "true", "localPath": "{job_path}", "remotePath": "/mnt/orangefs/test.sh", "executeDirectory": "/mnt/orangefs"}}}}
+{job_config}
 
 [tester_template]
 description: Creates a CloudyCluster Environment that contains a single g1-small CCQ enabled Slurm Scheduler, a g1-small Login instance, a 100GB OrangeFS Filesystem, and a g1-small NAT instance.
@@ -239,7 +317,7 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)[0]
     print("created template:", creating_templates)
 
-    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=1200, die=False)
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=3600, die=False)
     print("automaton run:", running_automaton)
 
     if fail:
@@ -250,6 +328,37 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
         if fail:
             print("Could not cleanup. You will have to manually delete the created resources.")
             sys.exit(0)
+
+    for job in jobs:
+        job.cleanup_job()
+
+    files = {}
+    for line in running_automaton.split("\n"):
+        if line.startswith("Downloading"):
+            print(line.split(" "))
+            if line.split(" ")[4] not in files:
+                files[line.split(" ")[4]] = {}
+            if line.split(" ")[1].endswith(".o"):
+                files[line.split(" ")[4]]["output"] = line.split(" ")[1]
+            elif line.split(" ")[1].endswith(".e"):
+                files[line.split(" ")[4]]["error"] = line.split(" ")[1]
+    print("files:", files)
+
+    for job in jobs:
+        if job.name not in files:
+            output = None
+            error = None
+        else:
+            if "output" in files[job.name]:
+                output = files[job.name]["output"]
+            else:
+                output = None
+            if "error" in files[job.name]:
+                error = files[job.name]["error"]
+            else:
+                error = None
+        job.output(output, error)
+
 
 if __name__ == "__main__":
     main()
