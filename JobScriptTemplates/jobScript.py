@@ -163,6 +163,7 @@ class JobScript(object):
         while True:
             print("It has been " + str(int(timeElapsed)/int(60)) + " minutes since the CCQ job launched.")
             values = scheduler.getJobStatus(environment, jobId, schedulerName, self.loginDNS)
+            print("The job is in the %s state" % values["payload"]["jobState"])
             if values['status'] != "success":
                 return values
             else:
@@ -181,7 +182,7 @@ class JobScript(object):
                             time.sleep(120)
                             print("The job is still creating the requested resources, waiting two minutes before checking the status again.")
                         else:
-                            print("The time limit has been reached at %s" % (timeElapsed))
+                            print("The time limit has been reached at %s in the state %s" % (timeElapsed, values["payload"]["jobState"]))
                             sys.exit(1)
 
                 else:
@@ -189,9 +190,9 @@ class JobScript(object):
                     timeElapsed += 60
                     time.sleep(60)
 
-    def is_complete(self, jobId, environment):
+    def job_state(self, jobId, environment):
         values = self.scheduler.getJobStatus(environment, jobId, self.schedulerName, self.loginDNS)
-        return values["payload"]["jobState"] == "Completed", values["payload"]["jobName"]
+        return values["payload"]["jobState"], values["payload"]["jobName"]
 
     def upload(self):
         if self.options['uploadProtocol'] == "sftp":

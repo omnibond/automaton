@@ -13,9 +13,14 @@ class MPIPreliminaryJob:
         self.n = n
 
         self.name = "jobScript%d" % n
+        self.job_filename = "test%d.sh" % self.n
+        self.job_path = "%s/%s" % (os.getcwd(), self.job_filename)
+        self.success = True
+
+    def __repr__(self):
+        return "<MPIPreliminaryJob %s>" % self.name
 
     def save_job(self):
-        self.job_path = os.getcwd() + "/test%d.sh" % self.n
         f = open(self.job_path, "w")
         f.write("""#!/bin/sh
 #SBATCH -N 1
@@ -26,7 +31,7 @@ sh mpi_prime_compile.sh
         f.close()
 
     def config(self):
-        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/test{self.n}.sh", "executeDirectory": "/mnt/orangefs"}}}}"""
+        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         pass
@@ -42,9 +47,14 @@ class MPIJob:
         self.processes = processes
 
         self.name = "jobScript%d" % n
+        self.job_filename = "test%d.sh" % self.n
+        self.job_path = "%s/%s" % (os.getcwd(), self.job_filename)
+        self.success = True
+
+    def __repr__(self):
+        return "<MPIJob %s %dx%d>" % (self.name, self.nodes, self.processes)
 
     def save_job(self):
-        self.job_path = os.getcwd() + "/test%d.sh" % self.n
         f = open(self.job_path, "w")
         f.write("""#!/bin/sh
 #SBATCH -N %d
@@ -64,32 +74,33 @@ mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
             monitor = "true"
         else:
             monitor = "false"
-        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/test{self.n}.sh", "executeDirectory": "/mnt/orangefs"}}}}"""
+        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         if error == None or output == None:
             print("Error: %s does not have the required files for checking output" % self.name)
+            self.success = False
         else:
             f = open(output, "r")
-            lines = list(f)
-            print("lines:", lines)
-            if len(lines) >= 1:
-                if f.startswith("Sorry"):
-                    print("The job was not a success")
-                else:
-                    print("The job %s was a success" % self.name)
+            string = f.read()
+            print("string:", repr(string))
+            if string.startswith("Using 4 tasks to scan 25000000 numbers\nDone. Largest prime is 24999983 Total primes 1565927\nWallclock time elapsed:"):
+                print("The job %s was a success" % self.name)
             else:
-                print("There was a problem with the job.")
+                print(f"There was a problem with the job. Please check the file {output}")
+                self.success = False
             f.close()
 
             f = open(error, "r")
             lines = list(f)
             print("lines:", lines)
             if len(lines) != 0:
-                print("There was an error in the %s file" % error)
+                print(f"There was an error in the {error} file")
+                self.success = False
             else:
-                print("There were no errors found in %s" % self.name)
+                print(f"There were no errors found in the {error} file")
             f.close()
+        return self.success
 
     def cleanup_job(self):
         os.unlink(self.job_path)
@@ -173,6 +184,7 @@ def main():
         service_account = cp.get("tester", "service_account")
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
+        dev_image = cp.get("tester", "dev_image")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
@@ -180,23 +192,31 @@ def main():
         print("missing configuration option")
         sys.exit(1)
 
+    if dev_image == "true":
+        dev_image = True
+    elif dev_image == "false":
+        dev_image = False
+    else:
+        print("dev_image not true or false")
+        sys.exit(1)
+
     os.chdir("..")
 
-    os.chdir("CloudyCluster/Build")
-    current_build = run(["git", "describe", "--always"])[0].strip()
-    compute = googleapiclient.discovery.build("compute", "v1")
-    images = compute.images().list(project=project_name).execute()
-    image_id = None
-    for image in images["items"]:
-        if ("%stest" % username) in image["name"] and current_build in image["name"]:
-            image_id = image["name"]
+    if not dev_image:
+        os.chdir("CloudyCluster/Build")
+        current_build = run(["git", "describe", "--always"])[0].strip()
+        compute = googleapiclient.discovery.build("compute", "v1")
+        images = compute.images().list(project=project_name).execute()
+        image_id = None
+        for image in images["items"]:
+            if ("%stest" % username) in image["name"] and current_build in image["name"]:
+                image_id = image["name"]
 
-    if image_id:
-        image = image_id
-        print("Using image %s" % (image))
-    else:
-        f = open("test.yaml", "w")
-        f.write(f"""- start:
+        if image_id:
+            image = image_id
+        else:
+            f = open("test.yaml", "w")
+            f.write(f"""- start:
   - local: false
   - sshkeyname: builderdash
   - sshkeyuser: builderdash
@@ -224,40 +244,45 @@ def main():
   - builderdash:
     - build.yaml
 """)
-        f.close()
-        build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)[0]
-        build = build.split("\n")
-        image = None
-        for line in build:
-            if line.startswith("the instance we're going to delete is"):
-                image = line.split(":")[1][1:]
-        if not image:
-            print("There's an error!")
-            sys.exit(1)
+            f.close()
+            build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)[0]
+            build = build.split("\n")
+            image = None
+            for line in build:
+                if line.startswith("the instance we're going to delete is"):
+                    image = line.split(":")[1][1:]
+            if not image:
+                print("There's an error!")
+                sys.exit(1)
 
-    os.chdir("../..")
+        os.chdir("../..")
 
-    ready = False
-    while not ready:
-        compute_client = googleapiclient.discovery.build("compute", "v1")
-        request = compute_client.images().get(project=project_name, image=image)
-        res = request.execute()
-        if res["status"] != "READY":
-            time.sleep(30)
-        else:
-            ready = True
+        ready = False
+        while not ready:
+            compute_client = googleapiclient.discovery.build("compute", "v1")
+            request = compute_client.images().get(project=project_name, image=image)
+            res = request.execute()
+            if res["status"] != "READY":
+                time.sleep(30)
+            else:
+                ready = True
+
+        testimage = f"projects/{project_name}/global/images/{image}"
+    
+    else:
+        testimage = sourceimage
 
     password = os.urandom(16).hex()
     print("cluster username", username)
     print("cluster password", password)
+    print("Using image", testimage)
 
-    jobs = [MPIPreliminaryJob(1), MPIJob(2, True, 2, 2), MPIJob(3, False, 2, 2), MPIJob(4, True, 2, 2), MPIJob(5, False, 2, 2)]
+    jobs = [MPIPreliminaryJob(1), MPIJob(2, False, 2, 2), MPIJob(3, False, 2, 2), MPIJob(4, False, 2, 2), MPIJob(5, False, 2, 2)]
 
     job_config = ""
     for job in jobs:
         job.save_job()
         job_config = job_config + job.config() + "\n"
-
 
     f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
     f.write(f"""[UserInfo]
@@ -283,7 +308,7 @@ region: us-east1
 zone: us-east1-b
 pubkeypath: {ssh_public_key}
 sshkeyuser: {username}
-sourceimage: projects/{project_name}/global/images/{image}
+sourceimage: {testimage}
 
 
 projectId: {project_name}
@@ -345,20 +370,39 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     print("files:", files)
 
     for job in jobs:
-        if job.name not in files:
+        if job.job_filename not in files:
             output = None
             error = None
         else:
-            if "output" in files[job.name]:
-                output = files[job.name]["output"]
+            if "output" in files[job.job_filename]:
+                output = files[job.job_filename]["output"]
             else:
                 output = None
-            if "error" in files[job.name]:
-                error = files[job.name]["error"]
+            if "error" in files[job.job_filename]:
+                error = files[job.job_filename]["error"]
             else:
                 error = None
         job.output(output, error)
 
+
+    success_count = 0
+    fail_count = 0
+    for job in jobs:
+        print("job:", job)
+        if not job.success:
+            print("fail")
+            fail_count += 1
+        elif job.success:
+            print("succeed")
+            success_count += 1
+        else:
+            print("other")
+
+    if fail_count != 0:
+        print(f"Status: Failure count of {fail_count}. Success count of {success_count}")
+    else:
+        print("Status: Success")
+    
 
 if __name__ == "__main__":
     main()
