@@ -8,54 +8,56 @@ import time
 
 import googleapiclient.discovery
 
-class MPIPreliminaryJob:
-    def __init__(self, n):
-        self.n = n
+class Job:
+    def __init__(self, name, monitor=True):
+        self.name = name
+        self.monitor = monitor
 
-        self.name = "jobScript%d" % n
-        self.job_filename = "test%d.sh" % self.n
-        self.job_path = "%s/%s" % (os.getcwd(), self.job_filename)
+        self.job_filename = f"{self.name}.sh"
+        self.job_path = f"{os.getcwd()}/{self.job_filename}"
         self.success = True
 
     def __repr__(self):
-        return "<MPIPreliminaryJob %s>" % self.name
+        return f"<{self.__class__.__name__} {self.name}>"
 
     def save_job(self):
         f = open(self.job_path, "w")
+        self.job_text(f)
+        f.close()
+
+    def job_text(self, f):
+        raise Exception("job_text undefined")
+
+    def config(self, n):
+        if self.monitor:
+            monitor = "true"
+        else:
+            monitor = "false"
+        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
+
+    def output(self, output, error):
+        pass
+    
+    def cleanup_job(self):
+        os.unlink(self.job_path)
+
+class MPIPreliminaryJob(Job):
+    def job_text(self, f):
         f.write("""#!/bin/sh
 #SBATCH -N 1
 cp -Rp /software/samplejobs /mnt/orangefs
 cd /mnt/orangefs/samplejobs/mpi/GCP
 sh mpi_prime_compile.sh
 """)
-        f.close()
 
-    def config(self):
-        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "true", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
-
-    def output(self, output, error):
-        pass
-
-    def cleanup_job(self):
-        os.unlink(self.job_path)
-
-class MPIJob:
-    def __init__(self, n, monitor, nodes, processes):
-        self.n = n
-        self.monitor = monitor
+class MPIJob(Job):
+    def __init__(self, name, monitor, nodes, processes):
         self.nodes = nodes
         self.processes = processes
 
-        self.name = "jobScript%d" % n
-        self.job_filename = "test%d.sh" % self.n
-        self.job_path = "%s/%s" % (os.getcwd(), self.job_filename)
-        self.success = True
+        super().__init__(name, monitor=monitor)
 
-    def __repr__(self):
-        return "<MPIJob %s %dx%d>" % (self.name, self.nodes, self.processes)
-
-    def save_job(self):
-        f = open(self.job_path, "w")
+    def job_text(self, f):
         f.write("""#!/bin/sh
 #SBATCH -N %d
 #SBATCH --ntasks-per-node=%d
@@ -67,14 +69,6 @@ module add openmpi/3.0.0
 cd $SHARED_FS_NAME/samplejobs/mpi
 mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """ % (self.nodes, self.processes, self.nodes*self.processes))
-        f.close()
-
-    def config(self):
-        if self.monitor:
-            monitor = "true"
-        else:
-            monitor = "false"
-        return f"""{self.name}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         if error == None or output == None:
@@ -101,9 +95,6 @@ mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
                 print(f"There were no errors found in the {error} file")
             f.close()
         return self.success
-
-    def cleanup_job(self):
-        os.unlink(self.job_path)
 
 def run(args, timeout=0, die=True):
     print("running command %s" % args)
@@ -277,12 +268,14 @@ def main():
     print("cluster password", password)
     print("Using image", testimage)
 
-    jobs = [MPIPreliminaryJob(1), MPIJob(2, False, 2, 2), MPIJob(3, False, 2, 2), MPIJob(4, False, 2, 2), MPIJob(5, False, 2, 2)]
+    jobs = [MPIPreliminaryJob("test1"), MPIJob("test2", False, 2, 2), MPIJob("test3", False, 2, 2), MPIJob("test4", False, 2, 2), MPIJob("test5", False, 2, 2)]
 
     job_config = ""
+    i = 0
     for job in jobs:
         job.save_job()
-        job_config = job_config + job.config() + "\n"
+        job_config = job_config + job.config(i) + "\n"
+        i = i + 1
 
     f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
     f.write(f"""[UserInfo]
