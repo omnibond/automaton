@@ -5,6 +5,7 @@ import signal
 import sys
 import termios
 import time
+import re
 
 import googleapiclient.discovery
 
@@ -33,7 +34,7 @@ class Job:
             monitor = "true"
         else:
             monitor = "false"
-        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 600, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
+        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         pass
@@ -51,24 +52,30 @@ sh mpi_prime_compile.sh
 """)
 
 class MPIJob(Job):
-    def __init__(self, name, monitor, nodes, processes):
+    def __init__(self, name, nodes, processes, instance_type=None, preemptible=False):
         self.nodes = nodes
         self.processes = processes
+        self.instance_type = instance_type
+        self.preemptible = preemptible
 
-        super().__init__(name, monitor=monitor)
+        super().__init__(name, monitor=False)
 
     def job_text(self, f):
-        f.write("""#!/bin/sh
-#SBATCH -N %d
-#SBATCH --ntasks-per-node=%d
+        f.write(f"""#!/bin/sh
+#SBATCH -N {self.nodes}
+#SBATCH --ntasks-per-node={self.processes}
+""")
 
-export SHARED_FS_NAME=/mnt/orangefs
+        if self.instance_type:
+            f.write(f"#CC -gcpit {self.instance_type}\n")
+        if self.preemptible:
+            f.write("#CC -gcpup\n")
 
+        f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/3.0.0
-
 cd $SHARED_FS_NAME/samplejobs/mpi
-mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
-""" % (self.nodes, self.processes, self.nodes*self.processes))
+mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+""")
 
     def output(self, output, error):
         if error == None or output == None:
@@ -78,8 +85,12 @@ mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
             f = open(output, "r")
             string = f.read()
             print("string:", repr(string))
-            if string.startswith("Using 4 tasks to scan 25000000 numbers\nDone. Largest prime is 24999983 Total primes 1565927\nWallclock time elapsed:"):
+            r = r"^Using [0-9]+ tasks to scan [0-9]+ numbers\nDone. Largest prime is [0-9]+ Total primes [0-9]+\nWallclock time elapsed: ([0-9]+(|\.[0-9]+)) seconds\n$"
+            m = re.search(r, string)
+            if m:
                 print("The job %s was a success" % self.name)
+                x = float(m.group(1))
+                print("match %f seconds" % x)
             else:
                 print(f"There was a problem with the job. Please check the file {output}")
                 self.success = False
@@ -95,6 +106,32 @@ mpirun -np %d $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
                 print(f"There were no errors found in the {error} file")
             f.close()
         return self.success
+
+class GPUJob(Job):
+    def job_text(self, f):
+        f.write("""#!/bin/sh
+#SBATCH -N 1
+#CC -gcpgpu
+#CC -gcpgpusp 1:nvidia-tesla-p100
+#CC -gcpit n1-standard-1
+nvidia-smi
+[ $? -eq 0 ] && echo NVIDIA-SMI successful
+""")
+
+    def output(self, output, error):
+        if error == None or output == None:
+            print("Error: %s does not have the required files for checking output" % self.name)
+            self.success = False
+        else:
+            f = open(output, "r")
+            string = f.read()
+            print("string:", repr(string))
+            if "NVIDIA-SMI successful" in string:
+                print("The job %s was a success" % self.name)
+            else:
+                print(f"There was a problem with the job. Please check the file {output}")
+                self.success = False
+            f.close()
 
 def run(args, timeout=0, die=True):
     print("running command %s" % args)
@@ -176,6 +213,7 @@ def main():
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
+        auto_delete = cp.get("tester", "auto_delete")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
@@ -189,6 +227,14 @@ def main():
         dev_image = False
     else:
         print("dev_image not true or false")
+        sys.exit(1)
+
+    if auto_delete == "true":
+        auto_delete = True
+    elif auto_delete == "false":
+        auto_delete = False
+    else:
+        print("auto_delete not true or false")
         sys.exit(1)
 
     os.chdir("..")
@@ -268,7 +314,18 @@ def main():
     print("cluster password", password)
     print("Using image", testimage)
 
-    jobs = [MPIPreliminaryJob("test1"), MPIJob("test2", False, 2, 2), MPIJob("test3", False, 2, 2), MPIJob("test4", False, 2, 2), MPIJob("test5", False, 2, 2)]
+    jobs = [
+        MPIPreliminaryJob("test1"),
+        MPIJob("test2", 2, 2),
+        MPIJob("test3", 2, 2),
+        MPIJob("test4", 4, 2),
+        MPIJob("test5", 2, 2),
+        MPIJob("test6", 10, 2),
+        MPIJob("test7", 4, 4, instance_type="c2-standard-4"),
+        MPIJob("test8", 4, 4, preemptible=True),
+        GPUJob("test9"),
+        MPIJob("test10", 4, 2)
+    ]
 
     job_config = ""
     i = 0
@@ -335,10 +392,10 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)[0]
     print("created template:", creating_templates)
 
-    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=3600, die=False)
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=7200, die=False)
     print("automaton run:", running_automaton)
 
-    if fail:
+    if fail and auto_delete:
         print("There was a problem with the last run of automaton. Initiating a cleanup.")
         cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
         print("automaton cleanup:", cleanup_automaton)

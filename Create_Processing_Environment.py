@@ -504,27 +504,27 @@ def main():
                     newJobScript = jobScript.JobScript(**kwargs)
                     print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
+                    if values['status'] != "success":
+                        print("values: ", values)
+                        jobName = values['jobId']
+                        enviroName = values['environment']
+                        print("Your Environment: %s \nYour job ID: %s \nThe execution of the jobscript: %s failed." % (enviroName, jobName, job["name"]))
+                        try:
+                            error = values['payload']['error']; print(error)
+                        except Exception as e:
+                            error = "N/A"
+                        try:
+                            traceb = values['payload']['traceback']; print(traceb)
+                        except Exception as e:
+                            traceb = "N/A"
+                        #if emailParams:
+                        #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
+                        #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
+                    else:
+                        print(values)
                 elif "false" in str(jobMonitor).lower():
                     simultaneous_jobs.append(job)
 
-                if values['status'] != "success":
-                    print("values: ", values)
-                    jobName = values['jobId']
-                    enviroName = values['environment']
-                    print("Your Environment: %s \nYour job ID: %s \nThe execution of the jobscript: %s failed." % (enviroName, jobName, job["name"]))
-                    try:
-                        error = values['payload']['error']; print(error)
-                    except Exception as e:
-                        error = "N/A"
-                    try:
-                        traceb = values['payload']['traceback']; print(traceb)
-                    except Exception as e:
-                        traceb = "N/A"
-                    #if emailParams:
-                    #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
-                    #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
-                else:
-                    print(values)
             else:
                 print("No workflow or jobScript found in conf file")
                 sys.exit(1)
