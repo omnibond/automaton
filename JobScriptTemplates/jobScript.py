@@ -67,24 +67,24 @@ class JobScript(object):
                             return [password]
                         elif "MFA Token" in str(fields[0][0]):
                             return [mfaToken]
-                    except Exception as e:
-                        print(e.message)
+                    except Exception:
+                        print(traceback.format_exc())
 
                 if not self.transport.is_authenticated():
                     self.transport.auth_interactive(username, handler)
                 if not self.transport.is_authenticated():
                     print('*** Authentication failed.')
                     self.transport.close()
-        except paramiko.AuthenticationException as e:
+        except paramiko.AuthenticationException:
             print("except 1")
-            print(e.message)
+            print(traceback.format_exc())
         except socket.error as xxx_todo_changeme:
             (value, message) = xxx_todo_changeme.args
             print("except 2")
             print(message)
-        except Exception as e:
+        except Exception:
             print("except 3")
-            print(e.message)
+            print(traceback.format_exc())
         if not private_key:
             return {'status': "success"}
         else:

@@ -52,11 +52,12 @@ sh mpi_prime_compile.sh
 """)
 
 class MPIJob(Job):
-    def __init__(self, name, nodes, processes, instance_type=None, preemptible=False):
+    def __init__(self, name, nodes, processes, instance_type=None, preemptible=False, expected_fail=False):
         self.nodes = nodes
         self.processes = processes
         self.instance_type = instance_type
         self.preemptible = preemptible
+        self.expected_fail = expected_fail
 
         super().__init__(name, monitor=False)
 
@@ -105,7 +106,13 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
             else:
                 print(f"There were no errors found in the {error} file")
             f.close()
-        return self.success
+
+            if self.expected_fail:
+                self.success = not self.success
+                if not self.success:
+                    print("The test %s did not fail as expected" % self.name)
+                else:
+                    print("The test %s failed as expected" % self.name)
 
 class GPUJob(Job):
     def job_text(self, f):
