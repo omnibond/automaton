@@ -140,7 +140,14 @@ nvidia-smi
                 self.success = False
             f.close()
 
-def run(args, timeout=0, die=True):
+def run(args, timeout=0, die=True, output=None):
+    must_close = False
+    if output:
+        if type(output) == str:
+            output = open(output, "a")
+            must_close = True
+    else:
+        output = sys.stdout
     print("running command %s" % args)
     start = time.time()
     # Use a pty so that commands which call isatty don't change behavior.
@@ -172,8 +179,8 @@ def run(args, timeout=0, die=True):
             new = b""
         if expired or len(new) == 0:
             break
-        sys.stdout.buffer.write(new)
-        sys.stdout.flush()
+        output.buffer.write(new)
+        output.flush()
         buffer = buffer + new
     if expired:
         print(f"time limit of {timeout} expired")
@@ -195,6 +202,8 @@ def run(args, timeout=0, die=True):
     else:
         fail = False
     buffer = buffer.decode()
+    if must_close:
+        output.close()
     return buffer, fail
 
 def main():
