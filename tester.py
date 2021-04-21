@@ -159,8 +159,6 @@ def run(args, timeout=0, die=True, output=None):
         if type(output) == str:
             output = open(output, "a")
             must_close = True
-    else:
-        output = sys.stdout
     print("running command %s" % args)
     start = time.time()
     # Use a pty so that commands which call isatty don't change behavior.
@@ -192,8 +190,11 @@ def run(args, timeout=0, die=True, output=None):
             new = b""
         if expired or len(new) == 0:
             break
-        output.buffer.write(new)
-        output.flush()
+        sys.stdout.buffer.write(new)
+        sys.stdout.flush()
+        if output:
+            output.buffer.write(new)
+            output.flush()
         buffer = buffer + new
     if expired:
         print(f"time limit of {timeout} expired")
@@ -249,6 +250,14 @@ def main():
     except configparser.NoOptionError:
         print("missing configuration option")
         sys.exit(1)
+
+    try:
+        output_dir = cp.get("tester", "output_dir")
+    except configparser.NoSectionError:
+        print("missing configuration section")
+        sys.exit(1)
+    except configparser.NoOptionError:
+        output_dir = os.getcwd()
 
     if dev_image == "true":
         dev_image = True
@@ -311,7 +320,7 @@ def main():
     - build.yaml
 """)
             f.close()
-            build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900)[0]
+            build = run(["python3", "builderdash.py", "-c", "test.yaml"], timeout=900, output=output_dir + "/builderdash.log")[0]
             build = build.split("\n")
             image = None
             for line in build:
@@ -419,11 +428,9 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     os.chdir("automaton")
 
-    creating_templates = run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30)[0]
-    print("created template:", creating_templates)
+    run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")[0]
 
-    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=7200, die=False)
-    print("automaton run:", running_automaton)
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=7200, die=False, output=output_dir + "/automaton.log")
 
     if fail and auto_delete:
         print("There was a problem with the last run of automaton. Initiating a cleanup.")
@@ -481,8 +488,8 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     if fail_count != 0:
         print(f"Status: Failure count of {fail_count}. Success count of {success_count}")
     else:
-        print("Status: Success")
-    
+        print("Status: Success")   
+
 
 if __name__ == "__main__":
     main()
