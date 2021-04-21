@@ -140,6 +140,19 @@ nvidia-smi
                 self.success = False
             f.close()
 
+class OrangeFSJob(Job):
+    def job_text(self, f):
+        f.write("""#!/bin/sh
+#SBATCH -N 1
+pvfs2-ping -m /mnt/orangefs
+dd if=/dev/zero of=/mnt/orangefs/test bs=1048576 count=1024
+sleep 30
+dd if=/mnt/orangefs/test of=/dev/null bs=1048576
+""")
+
+    def output(self, output, error):
+        pass
+
 def run(args, timeout=0, die=True, output=None):
     must_close = False
     if output:
@@ -340,7 +353,8 @@ def main():
         MPIJob("test7", 4, 4, instance_type="c2-standard-4"),
         MPIJob("test8", 4, 4, preemptible=True),
         GPUJob("test9"),
-        MPIJob("test10", 4, 2)
+        MPIJob("test10", 4, 2),
+        OrangeFSJob("test11")
     ]
 
     job_config = ""
