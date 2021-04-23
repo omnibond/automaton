@@ -259,6 +259,8 @@ def main():
     except configparser.NoOptionError:
         output_dir = os.getcwd()
 
+    output_dir = time.strftime(output_dir)
+
     if dev_image == "true":
         dev_image = True
     elif dev_image == "false":
