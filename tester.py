@@ -10,8 +10,9 @@ import re
 import googleapiclient.discovery
 
 class Job:
-    def __init__(self, name, monitor=True):
+    def __init__(self, name, output_dir, monitor=True):
         self.name = name
+        self.output_dir = output_dir
         self.monitor = monitor
 
         self.job_filename = f"{self.name}.sh"
@@ -34,7 +35,8 @@ class Job:
             monitor = "true"
         else:
             monitor = "false"
-        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "executeDirectory": "/mnt/orangefs"}}}}"""
+        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}",
+        "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         pass
@@ -52,14 +54,14 @@ sh mpi_prime_compile.sh
 """)
 
 class MPIJob(Job):
-    def __init__(self, name, nodes, processes, instance_type=None, preemptible=False, expected_fail=False):
+    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False):
         self.nodes = nodes
         self.processes = processes
         self.instance_type = instance_type
         self.preemptible = preemptible
         self.expected_fail = expected_fail
 
-        super().__init__(name, monitor=False)
+        super().__init__(name, output_dir, monitor=False)
 
     def job_text(self, f):
         f.write(f"""#!/bin/sh
@@ -260,6 +262,7 @@ def main():
         output_dir = os.getcwd()
 
     output_dir = time.strftime(output_dir)
+    os.mkdir(output_dir)
 
     if dev_image == "true":
         dev_image = True
@@ -355,17 +358,17 @@ def main():
     print("Using image", testimage)
 
     jobs = [
-        MPIPreliminaryJob("test1"),
-        MPIJob("test2", 2, 2),
-        MPIJob("test3", 2, 2),
-        MPIJob("test4", 4, 2),
-        MPIJob("test5", 2, 2),
-        MPIJob("test6", 10, 2),
-        MPIJob("test7", 4, 4, instance_type="c2-standard-4"),
-        MPIJob("test8", 4, 4, preemptible=True),
-        GPUJob("test9"),
-        MPIJob("test10", 4, 2),
-        OrangeFSJob("test11")
+        MPIPreliminaryJob("test1", output_dir),
+        MPIJob("test2", output_dir, 2, 2),
+        MPIJob("test3", output_dir, 2, 2),
+        MPIJob("test4", output_dir, 4, 2),
+        MPIJob("test5", output_dir, 2, 2),
+        MPIJob("test6", output_dir, 10, 2),
+        MPIJob("test7", output_dir, 4, 4, instance_type="c2-standard-4"),
+        MPIJob("test8", output_dir, 4, 4, preemptible=True),
+        GPUJob("test9", output_dir),
+        MPIJob("test10", output_dir, 4, 2),
+        OrangeFSJob("test11", output_dir)
     ]
 
     job_config = ""
@@ -458,6 +461,7 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
                 files[line.split(" ")[4]]["error"] = line.split(" ")[1]
     print("files:", files)
 
+
     for job in jobs:
         if job.job_filename not in files:
             output = None
@@ -490,7 +494,7 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     if fail_count != 0:
         print(f"Status: Failure count of {fail_count}. Success count of {success_count}")
     else:
-        print("Status: Success")   
+        print("Status: Success")
 
 
 if __name__ == "__main__":

@@ -285,12 +285,16 @@ class JobScript(object):
             # Download Output's .e and .o files to current directory
             # Create a wait loop to check if the files are in the current directory
             try:
-                fileName = jobName + jobId + ".e"
-                sftpSession.get(fileName, fileName)
-                print(f"Downloading {fileName} for job {jobName}")
-                fileName = jobName + jobId + ".o"
-                print(f"Downloading {fileName} for job {jobName}")
-                sftpSession.get(fileName, fileName)
+                remote = jobName + jobId + ".e"
+                local = self.options["directory"] + "/" + remote
+                sftpSession.get(remote, local)
+                print(f"Downloading {local} for job {jobName}")
+
+                remote = jobName + jobId + ".o"
+                local = self.options["directory"] + "/" + remote
+                sftpSession.get(remote, local)
+                print(f"Downloading {local} for job {jobName}")
+
                 return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
             except Exception:
                 return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
