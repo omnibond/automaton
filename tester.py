@@ -262,7 +262,6 @@ def main():
         output_dir = os.getcwd()
 
     output_dir = time.strftime(output_dir)
-    os.mkdir(output_dir)
 
     if dev_image == "true":
         dev_image = True
@@ -332,7 +331,7 @@ def main():
                 if line.startswith("the instance we're going to delete is"):
                     image = line.split(":")[1][1:]
             if not image:
-                print("There's an error!")
+                print("there was an error creating the image")
                 sys.exit(1)
 
         os.chdir("../..")
