@@ -191,8 +191,7 @@ class JobScript(object):
                     time.sleep(60)
 
     def job_state(self, jobId, environment):
-        values = self.scheduler.getJobStatus(environment, jobId, self.schedulerName, self.loginDNS)
-        return values["payload"]["jobState"], values["payload"]["jobName"]
+        return self.scheduler.getJobStatus(environment, jobId, self.schedulerName, self.loginDNS)
 
     def upload(self):
         if self.options['uploadProtocol'] == "sftp":
@@ -355,10 +354,11 @@ class JobScript(object):
         else:
             # We need to monitor the job and check for it's completion
             values = self.monitor(jobId, scheduler, self.environment, schedulerName)
-            self.download(jobId, values["jobName"])
+            if values['status'] != "success":
+                return values
 
+            self.download(jobId, values["jobName"])
             # The jobscript has been submitted and completed so we just return the values of the monitoring function
             values['jobId'] = jobId
             values['environment'] = self.environment
             return values
-

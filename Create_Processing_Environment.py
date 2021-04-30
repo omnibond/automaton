@@ -552,14 +552,23 @@ def main():
                 time.sleep(120)
                 to_remove = []
                 for jobId in jobIdDict:
-                    jobState, name = jobIdDict[jobId].job_state(jobId, environment)
-                    if jobState == "Completed":
-                        jobIdDict[jobId].download(jobId, name)
-                        done += 1
-                        print("%s job is complete." % (name))
-                        to_remove.append(jobId)
+                    values = jobIdDict[jobId].job_state(jobId, environment)
+                    if values["status"] == "success":
+                        jobState = values["payload"]["jobState"]
+                        name = values["payload"]["jobName"]
+                        if jobState == "Completed":
+                            jobIdDict[jobId].download(jobId, name)
+                            done += 1
+                            print("%s job is complete." % name)
+                            to_remove.append(jobId)
+                        elif jobState == "Error":
+                            print("%s job in error state." % name)
+                            to_remove.append(jobId)
+                        else:
+                            print("The job %s is in the %s state" % (name, jobState))
                     else:
-                        print("The job %s is in the %s state" % (name, jobState))
+                        print("job_state returned", values)
+                        sys.exit(1)
                 for jobId in to_remove:
                     del jobIdDict[jobId]
             else:
