@@ -504,7 +504,7 @@ def main():
                     newJobScript = jobScript.JobScript(**kwargs)
                     print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
-                    if values['status'] != "success":
+                    if values['status'] == "success":
                         print("values: ", values)
                         jobName = values['jobId']
                         enviroName = values['environment']
