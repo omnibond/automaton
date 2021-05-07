@@ -8,5 +8,8 @@ fi
 dir="$(date "+${dir}")"
 mkdir -p "${dir}"
 (date;
+start=$(date +%s);
 python3 tester.py 2>&1;
-date) | tee "${dir}/tester.log"
+end=$(date +%s);
+date;
+echo tester took $((end-start)) seconds) | tee "${dir}/tester.log"
