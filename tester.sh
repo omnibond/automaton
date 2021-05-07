@@ -7,6 +7,6 @@ else
 fi
 dir="$(date "+${dir}")"
 mkdir -p "${dir}"
-date
-python3 tester.py 2>&1 | tee "${dir}/tester.log"
-date
+(date;
+python3 tester.py 2>&1;
+date) | tee "${dir}/tester.log"
