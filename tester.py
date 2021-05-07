@@ -279,8 +279,10 @@ def main():
         print("auto_delete not true or false")
         sys.exit(1)
 
+    os.chdir("../CloudyCluster")
+    run(["git", "pull"])[0]
     os.chdir("..")
-
+    
     if not dev_image:
         os.chdir("CloudyCluster/Build")
         current_build = run(["git", "describe", "--always"])[0].strip()

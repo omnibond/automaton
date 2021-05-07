@@ -504,24 +504,30 @@ def main():
                     newJobScript = jobScript.JobScript(**kwargs)
                     print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
-                    if values['status'] == "success":
-                        print("values: ", values)
-                        jobName = values['jobId']
-                        enviroName = values['environment']
-                        print("Your Environment: %s \nYour job ID: %s \nThe execution of the jobscript: %s failed." % (enviroName, jobName, job["name"]))
+                    jobName = values['jobId']
+                    enviroName = values['environment']
+                    if values['status'] != "success":
+                        print("Your Environment:", enviroName)
+                        print("Your job ID:", jobName)
+                        print("The execution of the jobscript: %s failed." % job["name"])
                         try:
-                            error = values['payload']['error']; print(error)
+                            error = values['payload']['error']
+                            print(error)
                         except Exception as e:
                             error = "N/A"
                         try:
-                            traceb = values['payload']['traceback']; print(traceb)
+                            traceb = values['payload']['traceback']
+                            print(traceb)
                         except Exception as e:
                             traceb = "N/A"
+                        print(values)
                         #if emailParams:
                         #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                         #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
-                        print(values)
+                        print("Your Environment:", enviroName)
+                        print("Your job ID:", jobName)
+                        print("The execution of the jobscript: %s was successful." % job["name"])
                 elif "false" in str(jobMonitor).lower():
                     simultaneous_jobs.append(job)
 
@@ -553,24 +559,27 @@ def main():
                 to_remove = []
                 for jobId in jobIdDict:
                     values = jobIdDict[jobId].job_state(jobId, environment)
-                    if values["status"] == "success":
-                        jobState = values["payload"]["jobState"]
-                        name = values["payload"]["jobName"]
-                        if jobState == "Completed":
-                            jobIdDict[jobId].download(jobId, name)
-                            done += 1
-                            print("%s job is complete." % name)
-                            to_remove.append(jobId)
-                        elif jobState == "Error":
-                            print("%s job in error state." % name)
-                            to_remove.append(jobId)
-                        else:
-                            print("The job %s is in the %s state" % (name, jobState))
-                    else:
+                    if values["status"] != "success":
                         print("job_state returned", values)
                         sys.exit(1)
+                    jobState = values["payload"]["jobState"]
+                    name = values["payload"]["jobName"]
+                    if jobState == "Completed":
+                        values = jobIdDict[jobId].download(jobId, name)
+                        if values["status"] != "success":
+                            print("The job %s encountered an error while downloading" % name)
+                            print(values)
+                        else:
+                            print("%s job is complete." % name)
+                        to_remove.append(jobId)
+                    elif jobState == "Error":
+                        print("%s job in error state." % name)
+                        to_remove.append(jobId)
+                    else:
+                        print("The job %s is in the %s state" % (name, jobState))
                 for jobId in to_remove:
                     del jobIdDict[jobId]
+                    done += 1
             else:
                 print("The time limit has been reached at %s seconds" % (timeElapsed))
                 sys.exit(1)
