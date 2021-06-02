@@ -5,7 +5,9 @@ then
 else
     dir="$(grep output_dir tester.config | awk -F= '{ gsub(/ /, "", $2); gsub(/%%/, "%", $2); print $2 }')"
 fi
+echo dir before $dir
 dir="$(date "+${dir}")"
+echo dir after $dir
 mkdir -p "${dir}"
 (date;
 start=$(date +%s);

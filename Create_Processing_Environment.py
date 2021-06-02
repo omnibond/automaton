@@ -504,11 +504,10 @@ def main():
                     newJobScript = jobScript.JobScript(**kwargs)
                     print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
-                    jobName = values['jobId']
-                    enviroName = values['environment']
+                    if "jobId" in values and "environment" in values:
+                        print("Your Environment:", values["environment"])
+                        print("Your job ID:", values["jobId"])
                     if values['status'] != "success":
-                        print("Your Environment:", enviroName)
-                        print("Your job ID:", jobName)
                         print("The execution of the jobscript: %s failed." % job["name"])
                         try:
                             error = values['payload']['error']
@@ -525,8 +524,6 @@ def main():
                         #    missive = moosage + "\n\n\n" + "Your Error was:  \n\n" + error + "Your Traceback was:  \n\n" + traceb + "\n\n\n"
                         #    response = tidings.main(emailParams['sender'], emailParams['smtp'], emailParams['sendpw'], emailParams['email'], missive)
                     else:
-                        print("Your Environment:", enviroName)
-                        print("Your job ID:", jobName)
                         print("The execution of the jobscript: %s was successful." % job["name"])
                 elif "false" in str(jobMonitor).lower():
                     simultaneous_jobs.append(job)
@@ -710,4 +707,5 @@ def main():
 
 
 main()
+
 

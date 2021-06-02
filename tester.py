@@ -6,6 +6,9 @@ import sys
 import termios
 import time
 import re
+import email.utils
+import smtplib
+import ssl
 
 import googleapiclient.discovery
 
@@ -87,7 +90,6 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
         else:
             f = open(output, "r")
             string = f.read()
-            print("string:", repr(string))
             r = r"^Using [0-9]+ tasks to scan [0-9]+ numbers\nDone. Largest prime is [0-9]+ Total primes [0-9]+\nWallclock time elapsed: ([0-9]+(|\.[0-9]+)) seconds\n$"
             m = re.search(r, string)
             if m:
@@ -101,7 +103,6 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 
             f = open(error, "r")
             lines = list(f)
-            print("lines:", lines)
             if len(lines) != 0:
                 print(f"There was an error in the {error} file")
                 self.success = False
@@ -153,7 +154,10 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
 """)
 
     def output(self, output, error):
-        pass
+        if error == None or output == None:
+            print("Error: %s does not have the required files for checking output" % self.name)
+            self.success = False
+        
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -162,6 +166,7 @@ def run(args, timeout=0, die=True, output=None):
             output = open(output, "a")
             must_close = True
     print("running command %s" % args)
+    sys.stdout.flush()
     start = time.time()
     # Use a pty so that commands which call isatty don't change behavior.
     pid, fd = os.forkpty()
@@ -246,6 +251,11 @@ def main():
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
         auto_delete = cp.get("tester", "auto_delete")
+        smtp_port = cp.get("tester", "smtp_port")
+        port = cp.get("tester", "port")
+        from_addr = cp.get("tester", "from_addr")
+        to_addr = cp.get("tester", "to_addr")
+        output_url = cp.get("tester", "output_url")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
@@ -254,14 +264,17 @@ def main():
         sys.exit(1)
 
     try:
-        output_dir = cp.get("tester", "output_dir")
+        output_part1 = cp.get("tester", "output_part1")
+        output_part2 = cp.get("tester", "output_part2")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
     except configparser.NoOptionError:
-        output_dir = os.getcwd()
+        print("Error: missing options in config file")
+        sys.exit(1)
 
-    output_dir = time.strftime(output_dir)
+    output_part2 = time.strftime(output_part2)
+    output_dir = output_part1 + output_part2
 
     if dev_image == "true":
         dev_image = True
@@ -361,9 +374,9 @@ def main():
     jobs = [
         MPIPreliminaryJob("test1", output_dir),
         MPIJob("test2", output_dir, 2, 2),
-        MPIJob("test3", output_dir, 2, 2),
+        MPIJob("test3", output_dir, 3, 3, expected_fail=True),
         MPIJob("test4", output_dir, 4, 2),
-        MPIJob("test5", output_dir, 2, 2),
+        MPIJob("test5", output_dir, 3, 3, expected_fail=True),
         MPIJob("test6", output_dir, 10, 2),
         MPIJob("test7", output_dir, 4, 4, instance_type="c2-standard-4"),
         MPIJob("test8", output_dir, 4, 4, preemptible=True),
@@ -481,6 +494,7 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     success_count = 0
     fail_count = 0
+    status = None
     for job in jobs:
         print("job:", job)
         if not job.success:
@@ -494,9 +508,37 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     if fail_count != 0:
         print(f"Status: Failure count of {fail_count}. Success count of {success_count}")
+        status = f"{fail_count} out of {success_count + fail_count} jobs failed"
     else:
         print("Status: Success")
+        status = "succeeded"
 
+
+    message = f"""From: {from_addr}
+To: {to_addr}
+Subject: test {success_count}/{success_count + fail_count} successful
+Date: {email.utils.formatdate()}
+Message-Id: {email.utils.make_msgid()}
+
+This run of Automaton:
+{status}.
+
+Used image: {testimage}.
+
+Full output is available at {output_url}{output_part2}.
+"""
+
+    context = ssl.create_default_context()
+
+    try:
+        server = smtplib.SMTP(smtp_port, port)
+        server.starttls(context=context)
+        server.sendmail(from_addr, to_addr, message)
+    except Exception as e:
+        print(e)
+    finally:
+        server.quit()
 
 if __name__ == "__main__":
     main()
+
