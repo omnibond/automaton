@@ -1,0 +1,16 @@
+[tester]
+username = USER
+project_name = cloudyclusterfirebasedev
+sourceimage = projects/cloudyclusterfirebasedev/global/images/IMAGE
+service_account = SERVICE_ACCOUNT
+ssh_private_key = /home/USER/.ssh/id_rsa
+ssh_public_key = /home/USER/.ssh/id_rsa.pub
+dev_image = true
+auto_delete = false
+output_part1 = /home/USER/
+output_part2 = %%Y%%m%%d-%%H%%M
+smtp_port = smtp-relay.gmail.com
+port = 587
+from_addr = tester@omnibond.com
+to_addr = TO
+output_url = OUTPUT_URL
