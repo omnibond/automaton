@@ -251,11 +251,7 @@ def main():
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
         auto_delete = cp.get("tester", "auto_delete")
-        smtp_port = cp.get("tester", "smtp_port")
-        port = cp.get("tester", "port")
-        from_addr = cp.get("tester", "from_addr")
-        to_addr = cp.get("tester", "to_addr")
-        output_url = cp.get("tester", "output_url")
+        email = cp.get("tester", "email")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
@@ -291,6 +287,20 @@ def main():
     else:
         print("auto_delete not true or false")
         sys.exit(1)
+
+    if email == "true":
+        email = True
+        smtp_port = cp.get("tester", "smtp_port")
+        port = cp.get("tester", "port")
+        from_addr = cp.get("tester", "from_addr")
+        to_addr = cp.get("tester", "to_addr")
+        output_url = cp.get("tester", "output_url")
+    elif email == "false":
+        email = False
+    else:
+        print("email not true or false")
+        sys.exit(1)
+
 
     os.chdir("../CloudyCluster")
     run(["git", "pull"])[0]
@@ -514,7 +524,8 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
         status = "succeeded"
 
 
-    message = f"""From: {from_addr}
+    if email:
+        message = f"""From: {from_addr}
 To: {to_addr}
 Subject: test {success_count}/{success_count + fail_count} successful
 Date: {email.utils.formatdate()}
@@ -528,16 +539,17 @@ Used image: {testimage}.
 Full output is available at {output_url}{output_part2}.
 """
 
-    context = ssl.create_default_context()
+        context = ssl.create_default_context()
 
-    try:
-        server = smtplib.SMTP(smtp_port, port)
-        server.starttls(context=context)
-        server.sendmail(from_addr, to_addr, message)
-    except Exception as e:
-        print(e)
-    finally:
-        server.quit()
+        try:
+            server = smtplib.SMTP(smtp_port, port)
+            server.starttls(context=context)
+            server.sendmail(from_addr, to_addr, message)
+        except Exception as e:
+            print(e)
+        finally:
+            server.quit()
+
 
 if __name__ == "__main__":
     main()
