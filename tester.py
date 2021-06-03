@@ -271,6 +271,7 @@ def main():
 
     output_part2 = time.strftime(output_part2)
     output_dir = output_part1 + output_part2
+    os.mkdir(output_dir)
 
     if dev_image == "true":
         dev_image = True
