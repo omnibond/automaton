@@ -38,6 +38,7 @@ def main():
     parser.add_argument('-cc', action='store_true', help="If specified, this argument tells ccAutomaton to create new Control Resources.", default=None)
     parser.add_argument('-ce', action='store_true', help="If specified, this argument tells ccAutomaton to create a new Environment.", default=None)
     parser.add_argument('-rj', action='store_true', help="If specified, this argument tells ccAutomaton to run the jobs specified in the configuration file.", default=None)
+    parser.add_argument("-nd", action="store_true", help="In combination with -all, does not delete the Environment or the Control Resources.")
     parser.add_argument('-de', action='store_true', help="If specified, this argument tells ccAutomaton to delete the specified Environment.", default=None)
     parser.add_argument('-dc', action='store_true', help="If specified, this argument tells ccAutomaton to delete the specified Control Resources.", default=None)
     parser.add_argument('-dn', '--domainName', help="The domain name of the Control Resources of the Environment you want to use. If requesting to run jobs, delete an Environment or delete Control Resources this argument specifies which Control Resource should be used to perform the requested actions.", default=None)
@@ -52,6 +53,7 @@ def main():
     environmentType = args.environmentType
     configFilePath = args.configFilePath
     doAll = args.all
+    noDelete = args.nd
     createControl = args.cc
     createEnvironment = args.ce
     runJobs = args.rj
@@ -185,7 +187,9 @@ def main():
             sys.exit(1)
 
     stagesToRun = []
-    if doAll:
+    if doAll and noDelete:
+        stagesToRun = ["cc", "ce", "rj"]
+    elif doAll and not noDelete:
         # We need to run all the steps in the pipeline.
         stagesToRun = ["cc", "ce", "rj", "de", "dc"]
     else:

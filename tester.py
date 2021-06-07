@@ -9,6 +9,9 @@ import re
 import email.utils
 import smtplib
 import ssl
+import logging
+
+logger = logging.getLogger("tester")
 
 import googleapiclient.discovery
 
@@ -223,6 +226,7 @@ def run(args, timeout=0, die=True, output=None):
     else:
         fail = False
     buffer = buffer.decode()
+    logger.info(buffer)
     if must_close:
         output.close()
     return buffer, fail
@@ -251,7 +255,8 @@ def main():
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
         auto_delete = cp.get("tester", "auto_delete")
-        email = cp.get("tester", "email")
+        cleanup = cp.get("tester", "cleanup")
+        email_flag = cp.get("tester", "email_flag")
     except configparser.NoSectionError:
         print("missing configuration section")
         sys.exit(1)
@@ -281,27 +286,41 @@ def main():
         print("dev_image not true or false")
         sys.exit(1)
 
+    if cleanup == "true":
+        cleanup = True
+    elif cleanup == "false":
+        cleanup = False
+    else:
+        print("cleanup not true or false")
+        sys.exit(1)
+
     if auto_delete == "true":
         auto_delete = True
     elif auto_delete == "false":
         auto_delete = False
+
     else:
-        print("auto_delete not true or false")
+        print("auto_delete not set to true or false")
         sys.exit(1)
 
-    if email == "true":
-        email = True
+    if email_flag == "true":
+        email_flag = True
         smtp_port = cp.get("tester", "smtp_port")
         port = cp.get("tester", "port")
         from_addr = cp.get("tester", "from_addr")
         to_addr = cp.get("tester", "to_addr")
         output_url = cp.get("tester", "output_url")
-    elif email == "false":
-        email = False
+    elif email_flag == "false":
+        email_flag = False
     else:
         print("email not true or false")
         sys.exit(1)
 
+    logging.basicConfig(filename=f"{output_dir}/tester.log", level=logging.INFO)
+    
+    statement = f"The start time is: {output_part2}"
+    print(statement)
+    logger.info(statement)
 
     os.chdir("../CloudyCluster")
     run(["git", "pull"])[0]
@@ -378,9 +397,15 @@ def main():
         testimage = sourceimage
 
     password = os.urandom(16).hex()
-    print("cluster username", username)
-    print("cluster password", password)
-    print("Using image", testimage)
+    statement = f"cluster username: {username}"
+    print(statement)
+    logger.info(statement)
+    statement = f"cluster password: {password}"
+    print(statement)
+    logger.info(statement)
+    statement = f"Using image {testimage}"
+    print(statement)
+    logger.info(statement)
 
     jobs = [
         MPIPreliminaryJob("test1", output_dir),
@@ -460,9 +485,9 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")[0]
 
-    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all"], timeout=7200, die=False, output=output_dir + "/automaton.log")
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all", "-nd"], timeout=7200, die=False, output=output_dir + "/automaton.log")
 
-    if fail and auto_delete:
+    if fail and cleanup:
         print("There was a problem with the last run of automaton. Initiating a cleanup.")
         cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
         print("automaton cleanup:", cleanup_automaton)
@@ -484,7 +509,9 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
                 files[line.split(" ")[4]]["output"] = line.split(" ")[1]
             elif line.split(" ")[1].endswith(".e"):
                 files[line.split(" ")[4]]["error"] = line.split(" ")[1]
-    print("files:", files)
+    statement = f"files: {files}"
+    print(statement)
+    logger.info(statement)
 
 
     for job in jobs:
@@ -507,25 +534,35 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     fail_count = 0
     status = None
     for job in jobs:
-        print("job:", job)
+        statement = f"job: {job}"
+        print(statement)
+        logger.info(statement)
         if not job.success:
-            print("fail")
+            statement = "fail"
+            print(statement)
+            logger.info(statement)
             fail_count += 1
         elif job.success:
-            print("succeed")
+            statement = "succeed"
+            print(statement)
+            logger.info(statement)
             success_count += 1
         else:
             print("other")
 
     if fail_count != 0:
-        print(f"Status: Failure count of {fail_count}. Success count of {success_count}")
+        statement = f"Status: Failure count of {fail_count}. Success count of {success_count}"
+        print(statement)
+        logger.info(statement)
         status = f"{fail_count} out of {success_count + fail_count} jobs failed"
     else:
-        print("Status: Success")
+        statement = "Status: Success"
+        print(statement)
+        logger.info(statement)
         status = "succeeded"
 
 
-    if email:
+    if email_flag:
         message = f"""From: {from_addr}
 To: {to_addr}
 Subject: test {success_count}/{success_count + fail_count} successful
@@ -550,6 +587,15 @@ Full output is available at {output_url}{output_part2}.
             print(e)
         finally:
             server.quit()
+
+
+    if status == "succeeded":
+        run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
+
+    end = time.strftime("%Y%m%d-%H%M")
+    statement = f"The end time is: {end}"
+    print(statement)
+    logger.info(statement)
 
 
 if __name__ == "__main__":
