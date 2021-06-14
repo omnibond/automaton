@@ -240,7 +240,7 @@ def main():
     try:
         os.stat(filename)
     except FileNotFoundError:
-        print(f"configuration file {filename} not found")
+        logger.critical(f"configuration file {filename} not found")
         sys.exit(1)
 
     cp = configparser.ConfigParser()
@@ -258,24 +258,25 @@ def main():
         cleanup = cp.get("tester", "cleanup")
         email_flag = cp.get("tester", "email_flag")
     except configparser.NoSectionError:
-        print("missing configuration section")
+        logger.critical("missing configuration section")
         sys.exit(1)
     except configparser.NoOptionError:
-        print("missing configuration option")
+        logger.critical("missing configuration option")
         sys.exit(1)
 
     try:
         output_part1 = cp.get("tester", "output_part1")
         output_part2 = cp.get("tester", "output_part2")
     except configparser.NoSectionError:
-        print("missing configuration section")
+        logger.critical("missing configuration section")
         sys.exit(1)
     except configparser.NoOptionError:
-        print("Error: missing options in config file")
+        logger.critical("Error: missing options in config file")
         sys.exit(1)
 
     output_part2 = time.strftime(output_part2)
     output_dir = output_part1 + output_part2
+    start = time.time()
     os.mkdir(output_dir)
 
     if dev_image == "true":
@@ -283,7 +284,7 @@ def main():
     elif dev_image == "false":
         dev_image = False
     else:
-        print("dev_image not true or false")
+        logger.critical("dev_image not true or false")
         sys.exit(1)
 
     if cleanup == "true":
@@ -291,7 +292,7 @@ def main():
     elif cleanup == "false":
         cleanup = False
     else:
-        print("cleanup not true or false")
+        logger.critical("cleanup not true or false")
         sys.exit(1)
 
     if auto_delete == "true":
@@ -300,7 +301,7 @@ def main():
         auto_delete = False
 
     else:
-        print("auto_delete not set to true or false")
+        logger.critical("auto_delete not set to true or false")
         sys.exit(1)
 
     if email_flag == "true":
@@ -313,7 +314,7 @@ def main():
     elif email_flag == "false":
         email_flag = False
     else:
-        print("email not true or false")
+        logger.critical("email not true or false")
         sys.exit(1)
 
     logging.basicConfig(filename=f"{output_dir}/tester.log", level=logging.INFO)
@@ -376,7 +377,7 @@ def main():
                 if line.startswith("the instance we're going to delete is"):
                     image = line.split(":")[1][1:]
             if not image:
-                print("there was an error creating the image")
+                logger.critical("there was an error creating the image")
                 sys.exit(1)
 
         os.chdir("../..")
@@ -509,9 +510,6 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
                 files[line.split(" ")[4]]["output"] = line.split(" ")[1]
             elif line.split(" ")[1].endswith(".e"):
                 files[line.split(" ")[4]]["error"] = line.split(" ")[1]
-    statement = f"files: {files}"
-    print(statement)
-    logger.info(statement)
 
 
     for job in jobs:
@@ -542,13 +540,11 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
             print(statement)
             logger.info(statement)
             fail_count += 1
-        elif job.success:
+        else:
             statement = "succeed"
             print(statement)
             logger.info(statement)
             success_count += 1
-        else:
-            print("other")
 
     if fail_count != 0:
         statement = f"Status: Failure count of {fail_count}. Success count of {success_count}"
@@ -597,7 +593,13 @@ Full output is available at {output_url}{output_part2}.
     print(statement)
     logger.info(statement)
 
+    finish = time.time()
+
+    final_time = finish - start
+    statement = f"It took {final_time} seconds to complete the Automaton run"
+    print(statement)
+    logger.info(statement)
+
 
 if __name__ == "__main__":
     main()
-

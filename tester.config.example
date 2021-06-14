@@ -6,13 +6,14 @@ service_account = SERVICE_ACCOUNT
 ssh_private_key = /home/USER/.ssh/id_rsa
 ssh_public_key = /home/USER/.ssh/id_rsa.pub
 ;use a dev image already provided or create a new build using a userapps build
-dev_image = true
+dev_image = true/false
 ;initiates an automatic cleanup if the test fails
-auto_delete = false
+cleanup = true/false
+auto_delete = true/false
 output_part1 = /home/USER/
 output_part2 = %%Y%%m%%d-%%H%%M
-email = false
-;leave unchanged if email set to false
+email_flag = true/false
+;leave unchanged if email is set to false
 ;smtp_port = smtp-relay.gmail.com
 ;port = 587
 ;from_addr = tester@omnibond.com
