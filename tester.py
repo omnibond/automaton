@@ -315,7 +315,9 @@ def main():
     logger.info(statement)
 
     os.chdir("../CloudyCluster")
-    run(["git", "pull"])[0]
+    output, fail = run(["git", "pull"], die=False)
+    if fail and "fatal: Could not read from remote repository" in output:
+        logger.warning("could not update CloudyCluster; continuing anyway")
     os.chdir("..")
     
     if not dev_image:
