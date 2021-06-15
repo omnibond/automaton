@@ -308,7 +308,15 @@ def main():
         logger.critical("email not true or false")
         sys.exit(1)
 
-    logging.basicConfig(filename=f"{output_dir}/tester.log", level=logging.INFO)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    logging.root.addHandler(stdout_handler)
+
+    file_handler = logging.FileHandler(f"{output_dir}/tester.log", "a", "utf-8")
+    formatter = logging.Formatter("%(asctime)s>%(levelname)s:%(module)s:%(funcName)s-%(message)s")
+    file_handler.setFormatter(formatter)
+    logging.root.addHandler(file_handler)
+
+    logging.root.setLevel(logging.INFO)
     
     statement = f"The start time is: {output_part2}"
     print(statement)
