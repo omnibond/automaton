@@ -1,19 +1,20 @@
 import configparser
+import email.utils
+import logging
 import os
+import re
 import select
 import signal
-import sys
-import termios
-import time
-import re
-import email.utils
 import smtplib
 import ssl
-import logging
-
-logger = logging.getLogger("tester")
+import sys
+import tempfile
+import termios
+import time
 
 import googleapiclient.discovery
+
+logger = logging.getLogger("tester")
 
 class Job:
     def __init__(self, name, output_dir, monitor=True):
@@ -22,16 +23,16 @@ class Job:
         self.monitor = monitor
 
         self.job_filename = f"{self.name}.sh"
-        self.job_path = f"{os.getcwd()}/{self.job_filename}"
+        self.job_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        self.job_path = self.job_file.name
         self.success = True
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.name}>"
 
     def save_job(self):
-        f = open(self.job_path, "w")
-        self.job_text(f)
-        f.close()
+        self.job_text(self.job_file)
+        self.job_file.close()
 
     def job_text(self, f):
         raise Exception("job_text undefined")
