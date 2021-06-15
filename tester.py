@@ -254,14 +254,13 @@ def main():
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
-        auto_delete = cp.get("tester", "auto_delete")
-        cleanup = cp.get("tester", "cleanup")
+        delete_on_fauilure = cp.get("tester", "delete_on_failure")
         email_flag = cp.get("tester", "email_flag")
     except configparser.NoSectionError:
         logger.critical("missing configuration section")
         sys.exit(1)
-    except configparser.NoOptionError:
-        logger.critical("missing configuration option")
+    except configparser.NoOptionError as e:
+        logger.critical("missing configuration option: %s", e.option)
         sys.exit(1)
 
     try:
@@ -287,21 +286,12 @@ def main():
         logger.critical("dev_image not true or false")
         sys.exit(1)
 
-    if cleanup == "true":
-        cleanup = True
-    elif cleanup == "false":
-        cleanup = False
+    if delete_on_failure == "true":
+        delete_on_failure = True
+    elif delete_on_failure == "false":
+        delete_on_failure = False
     else:
-        logger.critical("cleanup not true or false")
-        sys.exit(1)
-
-    if auto_delete == "true":
-        auto_delete = True
-    elif auto_delete == "false":
-        auto_delete = False
-
-    else:
-        logger.critical("auto_delete not set to true or false")
+        logger.critical("delete_on_failure not true or false")
         sys.exit(1)
 
     if email_flag == "true":
@@ -488,15 +478,6 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all", "-nd"], timeout=7200, die=False, output=output_dir + "/automaton.log")
 
-    if fail and cleanup:
-        print("There was a problem with the last run of automaton. Initiating a cleanup.")
-        cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
-        print("automaton cleanup:", cleanup_automaton)
-
-        if fail:
-            print("Could not cleanup. You will have to manually delete the created resources.")
-            sys.exit(0)
-
     for job in jobs:
         job.cleanup_job()
 
@@ -583,9 +564,17 @@ Full output is available at {output_url}{output_part2}.
             print(e)
         finally:
             server.quit()
+    
+    if "failed" in status:
+        if delete_on_failure:
+            logger.error("There was a problem with the last run of automaton. Initiating a cleanup.")
+            cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
 
+            if fail:
+                logger.critical("Could not cleanup. You will have to manually delete the created resources.")
+                sys.exit(1)
 
-    if status == "succeeded":
+    elif "succeeded" in status:
         run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
 
     end = time.strftime("%Y%m%d-%H%M")

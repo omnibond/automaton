@@ -1,15 +1,16 @@
 [tester]
+;the username for the created cluster
 username = USER
 project_name = cloudyclusterfirebasedev
 sourceimage = projects/cloudyclusterfirebasedev/global/images/IMAGE
 service_account = SERVICE_ACCOUNT
 ssh_private_key = /home/USER/.ssh/id_rsa
 ssh_public_key = /home/USER/.ssh/id_rsa.pub
-;use a dev image already provided or create a new build using a userapps build
+;make sure CloudyCluster and Automaton are in the same directory
+;set to true if sourceimage is a dev or prod image or set to false if sourceimage is a userapps image which will make a new build
 dev_image = true/false
-;initiates an automatic cleanup if the test fails
-cleanup = true/false
-auto_delete = true/false
+;set to true to delete the cluster even if it fails
+delete_on_failure = true/false
 output_part1 = /home/USER/
 output_part2 = %%Y%%m%%d-%%H%%M
 email_flag = true/false
