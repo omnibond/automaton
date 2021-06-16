@@ -1,19 +1,20 @@
 import configparser
+import email.utils
+import logging
 import os
+import re
 import select
 import signal
-import sys
-import termios
-import time
-import re
-import email.utils
 import smtplib
 import ssl
-import logging
-
-logger = logging.getLogger("tester")
+import sys
+import tempfile
+import termios
+import time
 
 import googleapiclient.discovery
+
+logger = logging.getLogger("tester")
 
 class Job:
     def __init__(self, name, output_dir, monitor=True):
@@ -22,16 +23,16 @@ class Job:
         self.monitor = monitor
 
         self.job_filename = f"{self.name}.sh"
-        self.job_path = f"{os.getcwd()}/{self.job_filename}"
+        self.job_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        self.job_path = self.job_file.name
         self.success = True
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.name}>"
 
     def save_job(self):
-        f = open(self.job_path, "w")
-        self.job_text(f)
-        f.close()
+        self.job_text(self.job_file)
+        self.job_file.close()
 
     def job_text(self, f):
         raise Exception("job_text undefined")
@@ -307,14 +308,24 @@ def main():
         logger.critical("email not true or false")
         sys.exit(1)
 
-    logging.basicConfig(filename=f"{output_dir}/tester.log", level=logging.INFO)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    logging.root.addHandler(stdout_handler)
+
+    file_handler = logging.FileHandler(f"{output_dir}/tester.log", "a", "utf-8")
+    formatter = logging.Formatter("%(asctime)s>%(levelname)s:%(module)s:%(funcName)s-%(message)s")
+    file_handler.setFormatter(formatter)
+    logging.root.addHandler(file_handler)
+
+    logging.root.setLevel(logging.INFO)
     
     statement = f"The start time is: {output_part2}"
     print(statement)
     logger.info(statement)
 
     os.chdir("../CloudyCluster")
-    run(["git", "pull"])[0]
+    output, fail = run(["git", "pull"], die=False)
+    if fail and "fatal: Could not read from remote repository" in output:
+        logger.warning("could not update CloudyCluster; continuing anyway")
     os.chdir("..")
     
     if not dev_image:
