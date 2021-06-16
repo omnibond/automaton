@@ -254,7 +254,7 @@ def main():
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
-        delete_on_fauilure = cp.get("tester", "delete_on_failure")
+        delete_on_failure = cp.get("tester", "delete_on_failure")
         email_flag = cp.get("tester", "email_flag")
     except configparser.NoSectionError:
         logger.critical("missing configuration section")
