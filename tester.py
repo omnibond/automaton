@@ -89,6 +89,7 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 
     def output(self, output, error):
         error_flag = False
+        unexpected_output = False
         if error == None or output == None:
             logger.error("Error: %s does not have the required files for checking output" % self.name)
             error_flag = True
