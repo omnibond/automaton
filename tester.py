@@ -88,38 +88,41 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """)
 
     def output(self, output, error):
+        error_flag = False
         if error == None or output == None:
-            print("Error: %s does not have the required files for checking output" % self.name)
-            self.success = False
+            logger.error("Error: %s does not have the required files for checking output" % self.name)
+            error_flag = True
         else:
             f = open(output, "r")
             string = f.read()
+            f.close()
             r = r"^Using [0-9]+ tasks to scan [0-9]+ numbers\nDone. Largest prime is [0-9]+ Total primes [0-9]+\nWallclock time elapsed: ([0-9]+(|\.[0-9]+)) seconds\n$"
             m = re.search(r, string)
             if m:
-                print("The job %s was a success" % self.name)
+                logger.info("The job %s was a success" % self.name)
                 x = float(m.group(1))
-                print("match %f seconds" % x)
+                logger.info("match %f seconds" % x)
             else:
-                print(f"There was a problem with the job. Please check the file {output}")
-                self.success = False
-            f.close()
+                unexpected_output = True
 
             f = open(error, "r")
             lines = list(f)
             if len(lines) != 0:
-                print(f"There was an error in the {error} file")
-                self.success = False
+                logger.error(f"There was an error in the {error} file")
+                error_flag = True
             else:
-                print(f"There were no errors found in the {error} file")
+                logger.info(f"There were no errors found in the {error} file")
             f.close()
 
             if self.expected_fail:
-                self.success = not self.success
-                if not self.success:
-                    print("The test %s did not fail as expected" % self.name)
+                if string.startswith("Sorry - this exercise requires an even number of tasks.") and not error_flag:
+                    logger.info("The test %s failed as expected" % self.name)
                 else:
-                    print("The test %s failed as expected" % self.name)
+                    logger.error("The test %s did not fail as expected" % self.name)
+
+        if error_flag or (unexpected_output and not self.expected_fail):
+            self.success = False
+            logger.error("There was a problem with the job. Please check the output files")
 
 class GPUJob(Job):
     def job_text(self, f):
@@ -134,16 +137,15 @@ nvidia-smi
 
     def output(self, output, error):
         if error == None or output == None:
-            print("Error: %s does not have the required files for checking output" % self.name)
+            logger.error("Error: %s does not have the required files for checking output" % self.name)
             self.success = False
         else:
             f = open(output, "r")
             string = f.read()
-            print("string:", repr(string))
             if "NVIDIA-SMI successful" in string:
-                print("The job %s was a success" % self.name)
+                logger.info("The job %s was a success" % self.name)
             else:
-                print(f"There was a problem with the job. Please check the file {output}")
+                logger.error(f"There was a problem with the job. Please check the file {output}")
                 self.success = False
             f.close()
 
@@ -159,7 +161,7 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
 
     def output(self, output, error):
         if error == None or output == None:
-            print("Error: %s does not have the required files for checking output" % self.name)
+            logger.error("Error: %s does not have the required files for checking output" % self.name)
             self.success = False
         
 
@@ -169,7 +171,7 @@ def run(args, timeout=0, die=True, output=None):
         if type(output) == str:
             output = open(output, "a")
             must_close = True
-    print("running command %s" % args)
+    logger.info("running command %s" % args)
     sys.stdout.flush()
     start = time.time()
     # Use a pty so that commands which call isatty don't change behavior.
@@ -208,7 +210,7 @@ def run(args, timeout=0, die=True, output=None):
             output.flush()
         buffer = buffer + new
     if expired:
-        print(f"time limit of {timeout} expired")
+        logger.error(f"time limit of {timeout} expired")
     # This will also send SIGHUP to the child process.
     os.close(fd)
     pid, status = os.waitpid(pid, 0)
@@ -216,10 +218,10 @@ def run(args, timeout=0, die=True, output=None):
     final_time = end - start
     if os.WIFEXITED(status):
         status = os.WEXITSTATUS(status)
-        print(f"process returned {status} after {final_time} seconds")
+        logger.info(f"process returned {status} after {final_time} seconds")
     else:
         status = os.WTERMSIG(status)
-        print(f"process died from signal {status} after {final_time} seconds")
+        logger.error(f"process died from signal {status} after {final_time} seconds")
     if die and (status != 0 or expired):
         sys.exit(1)
     elif not die and (status != 0 or expired):
@@ -318,9 +320,7 @@ def main():
 
     logging.root.setLevel(logging.INFO)
     
-    statement = f"The start time is: {output_part2}"
-    print(statement)
-    logger.info(statement)
+    logger.info(f"The start time is: {output_part2}")
 
     os.chdir("../CloudyCluster")
     output, fail = run(["git", "pull"], die=False)
@@ -399,15 +399,9 @@ def main():
         testimage = sourceimage
 
     password = os.urandom(16).hex()
-    statement = f"cluster username: {username}"
-    print(statement)
-    logger.info(statement)
-    statement = f"cluster password: {password}"
-    print(statement)
-    logger.info(statement)
-    statement = f"Using image {testimage}"
-    print(statement)
-    logger.info(statement)
+    logger.info(f"cluster username: {username}")
+    logger.info(f"cluster password: {password}")
+    logger.info(f"Using image {testimage}")
 
     jobs = [
         MPIPreliminaryJob("test1", output_dir),
@@ -485,7 +479,7 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 
     os.chdir("automaton")
 
-    run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")[0]
+    run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")
 
     running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all", "-nd"], timeout=7200, die=False, output=output_dir + "/automaton.log")
 
@@ -495,7 +489,6 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     files = {}
     for line in running_automaton.split("\n"):
         if line.startswith("Downloading"):
-            print(line.split(" "))
             if line.split(" ")[4] not in files:
                 files[line.split(" ")[4]] = {}
             if line.split(" ")[1].endswith(".o"):
@@ -524,29 +517,19 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     fail_count = 0
     status = None
     for job in jobs:
-        statement = f"job: {job}"
-        print(statement)
-        logger.info(statement)
+        logger.info(f"job: {job}")
         if not job.success:
-            statement = "fail"
-            print(statement)
-            logger.info(statement)
+            logger.info("fail")
             fail_count += 1
         else:
-            statement = "succeed"
-            print(statement)
-            logger.info(statement)
+            logger.info("succeed")
             success_count += 1
 
     if fail_count != 0:
-        statement = f"Status: Failure count of {fail_count}. Success count of {success_count}"
-        print(statement)
-        logger.info(statement)
+        logger.info(f"Status: Failure count of {fail_count}. Success count of {success_count}")
         status = f"{fail_count} out of {success_count + fail_count} jobs failed"
     else:
-        statement = "Status: Success"
-        print(statement)
-        logger.info(statement)
+        logger.info("Status: Success")
         status = "succeeded"
 
 
@@ -572,14 +555,14 @@ Full output is available at {output_url}{output_part2}.
             server.starttls(context=context)
             server.sendmail(from_addr, to_addr, message)
         except Exception as e:
-            print(e)
+            logger.error(e)
         finally:
             server.quit()
     
     if "failed" in status:
         if delete_on_failure:
             logger.error("There was a problem with the last run of automaton. Initiating a cleanup.")
-            cleanup_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
+            fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)[1]
 
             if fail:
                 logger.critical("Could not cleanup. You will have to manually delete the created resources.")
@@ -589,16 +572,12 @@ Full output is available at {output_url}{output_part2}.
         run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
 
     end = time.strftime("%Y%m%d-%H%M")
-    statement = f"The end time is: {end}"
-    print(statement)
-    logger.info(statement)
+    logger.info(f"The end time is: {end}")
 
     finish = time.time()
 
     final_time = finish - start
-    statement = f"It took {final_time} seconds to complete the Automaton run"
-    print(statement)
-    logger.info(statement)
+    logger.info(f"It took {final_time} seconds to complete the Automaton run")
 
 
 if __name__ == "__main__":
