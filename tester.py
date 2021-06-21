@@ -537,12 +537,9 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     if email_flag:
         message = f"""From: {from_addr}
 To: {to_addr}
-Subject: test {success_count}/{success_count + fail_count} successful
+Subject: CloudyCluster: {success_count} of {success_count + fail_count} jobs successful
 Date: {email.utils.formatdate()}
 Message-Id: {email.utils.make_msgid()}
-
-This run of Automaton:
-{status}.
 
 Used image: {testimage}.
 
