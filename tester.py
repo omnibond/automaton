@@ -287,7 +287,7 @@ def main():
     elif dev_image == "false":
         dev_image = False
     else:
-        logger.critical("dev_image not true or false")
+        logger.critical("dev_image not set to true or false")
         sys.exit(1)
 
     if delete_on_failure == "true":
@@ -295,7 +295,7 @@ def main():
     elif delete_on_failure == "false":
         delete_on_failure = False
     else:
-        logger.critical("delete_on_failure not true or false")
+        logger.critical("delete_on_failure not set to true or false")
         sys.exit(1)
 
     if email_flag == "true":
@@ -308,7 +308,7 @@ def main():
     elif email_flag == "false":
         email_flag = False
     else:
-        logger.critical("email not true or false")
+        logger.critical("email not set to true or false")
         sys.exit(1)
 
     stdout_handler = logging.StreamHandler(sys.stdout)
