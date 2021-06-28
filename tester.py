@@ -533,6 +533,10 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
         logger.info("Status: Success")
         status = "succeeded"
 
+    if dev_image == True:
+        image = f"Used the dev image: {testimage}"
+    else:
+        image = f"Used the userapps image: {sourceimage}.\nCreated dev image: {testimage}"
 
     if email_flag:
         message = f"""From: {from_addr}
@@ -541,7 +545,7 @@ Subject: CloudyCluster: {success_count} of {success_count + fail_count} jobs suc
 Date: {email.utils.formatdate()}
 Message-Id: {email.utils.make_msgid()}
 
-Used image: {testimage}.
+{image}.
 
 Full output is available at {output_url}{output_part2}.
 """
