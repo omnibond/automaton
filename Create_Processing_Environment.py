@@ -16,8 +16,6 @@ import json
 from random import randint
 import time
 
-import oauth2client.client
-
 #import emailScript as tidings
 import configparser
 
