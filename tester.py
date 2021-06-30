@@ -471,7 +471,7 @@ az: us-east1-b
 [tester_template]
 description: Creates a CloudyCluster Environment that contains a single g1-small CCQ enabled Slurm Scheduler, a g1-small Login instance, a 100GB OrangeFS Filesystem, and a g1-small NAT instance.
 vpcCidr: 10.0.0.0/16
-fsChoice: 'OrangeFS'
+fsChoice: OrangeFS
 scheduler1: {{'type': 'Slurm', 'ccq': 'true', 'instanceType': 'g1-small', 'name': 'slurm', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
 filesystem1: {{"numberOfInstances": 4, "instanceType": "g1-small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
 login1: {{'name': 'login', 'instanceType': 'g1-small', 'fsChoice': 'OrangeFS'}}

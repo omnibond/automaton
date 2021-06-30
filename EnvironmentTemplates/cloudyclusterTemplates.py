@@ -46,11 +46,11 @@ class CloudyClusterTemplate(EnvironmentTemplate):
         #Instance specific objects so that they can be referenced separately
         validNatParameters = {"instanceType": "nit", "accessFrom": "naf", "volumeType": "VolumeType"}
 
-        validClusterParameters = {"keyname": "k", "vpccidr": "vc", "az": "instanceAvailabilityZone", "region": "Region", "createAllEFSMountPoints": "createAllEFSMountPoints", "fsChoice": "fsChoice"}
+        validClusterParameters = {"keyname": "k", "vpccidr": "vc", "az": "instanceAvailabilityZone", "region": "Region", "createAllEFSMountPoints": "createAllEFSMountPoints", "fschoice": "fsChoice"}
 
-        validSchedulerParameters = {"instanceType": "sit", "ccq": "scalingType", "volumeType": "VolumeType", "name": "schedName", "type": "schedType", "schedAllocationType": "schedAllocationType", "fsChoice": "fsChoice"}
+        validSchedulerParameters = {"instanceType": "sit", "ccq": "scalingType", "volumeType": "VolumeType", "name": "schedName", "type": "schedType", "schedAllocationType": "schedAllocationType", "fschoice": "fsChoice"}
 
-        validWebDavParameters = {"instanceType": "wdit", "name": "accessName", "volumeType": "VolumeType", "fsChoice": "fsChoice"}
+        validWebDavParameters = {"instanceType": "wdit", "name": "accessName", "volumeType": "VolumeType", "fschoice": "fsChoice"}
 
         validFilesystemParameters = {"numberOfInstances": "ofs", "port": "op", "name": "fn", "filesystemId": "fid", "numberOfStandbyInstances": "fo", "filesystemSizeGB": "ebs", "storageVolumesPerInstance": "ebsNumber", "instanceType": "ofit", "volumeType": "VolumeType", "inputOutputOperationsPerSecond": 'iops', "encrypted": "enableEBSEncryption", "storageVolumeType": "storageVolumeType", "orangeFSIops": "orangeFSIops", "instanceIops": "instanceIops", "fsChoice": "fsChoice"}
 
