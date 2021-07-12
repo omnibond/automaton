@@ -671,6 +671,7 @@ class CloudyCluster(Environment):
                 r = requests.post(url, cookies=self.sessionCookies, json={'clusterName': str(self.name)})
                 clusterInfo = json.loads(r.content)
                 if clusterInfo['clusterSpunUp'] == "true":
+                    time.sleep(120)
                     return {"status": "success", "payload": "The Environment has been created successfully."}
                 else:
                     if str(clusterInfo['clusterError']) != "none":
