@@ -9,6 +9,8 @@ ssh_public_key = /home/USER/.ssh/id_rsa.pub
 ;make sure CloudyCluster and Automaton are in the same directory
 ;set to true if sourceimage is a dev or prod image or set to false if sourceimage is a userapps image which will make a new build
 dev_image = true/false
+;configuration file for the specified jobs
+job_config = jobtest.config
 ;set to true to delete the cluster even if it fails
 delete_on_failure = true/false
 output_part1 = /home/USER/

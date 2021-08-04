@@ -164,7 +164,6 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
         if error == None or output == None:
             logger.error("Error: %s does not have the required files for checking output" % self.name)
             self.success = False
-        
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -230,7 +229,6 @@ def run(args, timeout=0, die=True, output=None):
     else:
         fail = False
     buffer = buffer.decode()
-    logger.info(buffer)
     if must_close:
         output.close()
     return buffer, fail
@@ -248,7 +246,7 @@ def main():
         sys.exit(1)
 
     cp = configparser.ConfigParser()
-    cp.read(filename)
+    cp.read_file(open(filename))
 
     try:
         username = cp.get("tester", "username")
@@ -258,6 +256,7 @@ def main():
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
+        job_config = cp.get("tester", "job_config")
         delete_on_failure = cp.get("tester", "delete_on_failure")
         email_flag = cp.get("tester", "email_flag")
     except configparser.NoSectionError:
@@ -404,19 +403,24 @@ def main():
     logger.info(f"cluster password: {password}")
     logger.info(f"Using image {testimage}")
 
-    jobs = [
-        MPIPreliminaryJob("test1", output_dir),
-        MPIJob("test2", output_dir, 2, 2),
-        MPIJob("test3", output_dir, 3, 3, expected_fail=True),
-        MPIJob("test4", output_dir, 4, 2),
-        MPIJob("test5", output_dir, 3, 3, expected_fail=True),
-        MPIJob("test6", output_dir, 10, 2),
-        MPIJob("test7", output_dir, 4, 4, instance_type="c2-standard-4"),
-        MPIJob("test8", output_dir, 4, 4, preemptible=True),
-        GPUJob("test9", output_dir),
-        MPIJob("test10", output_dir, 4, 2),
-        OrangeFSJob("test11", output_dir)
-    ]
+    os.chdir("automaton")
+
+    config = configparser.ConfigParser()
+
+    config.read_file(open(job_config))
+    sections = config.sections()
+
+    jobs = []
+    for section in sections:
+        d = {}
+        s = config[section]["job_type"]
+        d["name"] = section
+        d["output_dir"] = output_dir
+        for key in config[section]:
+            if key != "job_type":
+                d[key] = eval(config[section][key])
+        c = eval(s)
+        jobs.append(c(**d))
 
     job_config = ""
     i = 0
@@ -425,7 +429,7 @@ def main():
         job_config = job_config + job.config(i) + "\n"
         i = i + 1
 
-    f = open("automaton/ConfigurationFiles/gcp_tester.conf", "w")
+    f = open("ConfigurationFiles/gcp_tester.conf", "w")
     f.write(f"""[UserInfo]
 userName: {username}
 password: {password}
@@ -478,8 +482,6 @@ login1: {{'name': 'login', 'instanceType': 'g1-small', 'fsChoice': 'OrangeFS'}}
 nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 """)
     f.close()
-
-    os.chdir("automaton")
 
     run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")
 
@@ -585,3 +587,4 @@ Full output is available at {output_url}{output_part2}.
 
 if __name__ == "__main__":
     main()
+
