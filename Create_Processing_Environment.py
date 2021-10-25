@@ -75,6 +75,7 @@ def main():
     lastName = None
     pempath = None
 
+
     try:
         import botocore
         import boto3
@@ -504,7 +505,6 @@ def main():
                 if "true" in str(jobMonitor).lower():
                     kwargs = {"name": job['name'], "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment}
                     newJobScript = jobScript.JobScript(**kwargs)
-                    print("newJobScript: ", newJobScript)
                     values = newJobScript.processJobScript()
                     if "jobId" in values and "environment" in values:
                         print("Your Environment:", values["environment"])
@@ -543,7 +543,6 @@ def main():
         for job in simultaneous_jobs:
             kwargs = {"name": job['name'], "options": job['options'], "schedulerType": job['options']['schedulerType'], "environment": environment}
             newJobScript = jobScript.JobScript(**kwargs)
-            print("newJobScript: ", newJobScript)
             values = newJobScript.processJobScript()
             jobIdDict[values["jobId"]] = newJobScript
             if job["options"]["timeout"] == 0:

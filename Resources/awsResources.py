@@ -38,10 +38,32 @@ class AwsResources(Resource):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a Botocore session to" + str(service) + ".", "traceback": ''.join(traceback.format_exc())}}
 
+    def getStartupKey(self, instance):
+        try:
+            client = self.createBotocoreClient("cloudformation")["payload"]
+            correct_key = None
+            counter = 0
+            response = client.describe_stacks(StackName=self.stackId)
+            for item in response["Stacks"]:
+                for output in item["Outputs"]:
+                    if "InstanceID" in output["OutputKey"]:
+                        instance = output["OutputValue"]
+            client = self.createBotocoreClient("ec2")["payload"]
+            while not correct_key and counter < 5:
+                request = client.describe_tags(Filters=[{"Name": "resource-id", "Values": [instance]}])
+                for item in request["Tags"]:
+                    if "startup_key" in item["Key"]:
+                        return {"status": "success", "payload": item["Value"]}
+                time.sleep(20)
+                counter += 1
+            if not correct_key:
+                return {"status": "error", "payload": {"error": "startup_key not found", "traceback": "".join(traceback.format_stack())}}
+        except Exception as e:
+            return {"status": "error", "payload": {"error": "There was an error trying to get the startup key.", "traceback": ''.join(traceback.format_exc())}}
+
     def createControlResources(self, templateLocation, resourceName, options):
         #Create Cloud Formation Session
         client = None
-        stackId = None
         cftBody = ""
         print("About to get those parameters")
         parameters = [{'ParameterKey': 'KeyName', 'ParameterValue': str(options['keyname'])}, {'ParameterKey': 'InstanceType', 'ParameterValue': str(options['instancetype'])}, {'ParameterKey': 'NetworkCIDR', 'ParameterValue': str(options['networkcidr'])}, {'ParameterKey': 'vpc', 'ParameterValue': str(options['vpc'])}, {'ParameterKey': 'PublicSubnet', 'ParameterValue': str(options['publicsubnet'])}]
@@ -67,8 +89,8 @@ class AwsResources(Resource):
                 # Get the stack ID for use in getting the events of the stack
                 for i in response:
                     if i == 'StackId':
-                        stackId = response[i]
-                return {"status": "success", "payload": stackId}
+                        self.stackId = response[i]
+                return {"status": "success", "payload": self.stackId}
             except Exception as e:
                 return {"status": "error", "payload": {"error": "Encountered an error when attempting to create the Cloud Formation Stack.", "traceback": ''.join(traceback.format_exc())}}
         else:
@@ -121,6 +143,7 @@ class AwsResources(Resource):
                     resourceStatusReason = stackDict['ResourceStatusReason']
                 except Exception as e:
                     resourceStatusReason = ""
+                    print(traceback.format_exc())
                 if resourceType == 'AWS::CloudFormation::Stack':
                     status = resourceStatus
                 print("ResourceStatusReason 1 is ")
@@ -144,6 +167,7 @@ class AwsResources(Resource):
                         return {"status": "error", "payload": {"error": "The Cloud Formation Template failed to delete properly. The error associated with the Cloud Formation Template is: " + str(resourceStatusReason), "traceback": ''.join(traceback.format_stack())}}
 
             except Exception as e:
+                print(traceback.format_exc())
                 # If we are monitoring for the delete of the Stack then when it deletes we will get the stack not found exception and then we can return success. Otherwise it is an error and should be returned as such
                 if stateToFind == "deletion":
                     if "Stack [" + str(resourceId) + "] does not exist" in ''.join(traceback.format_exc()):
@@ -175,10 +199,10 @@ class AwsResources(Resource):
         try:
             response = client.describe_stacks(StackName=resourceId)
             requestedValue = None
-            y = response['Stacks'][0]['Outputs'][0]
+            y = response['Stacks'][0]['Outputs']
             for i in y:
-                if str(y[i]) == str(valueToGet):
-                    requestedValue = y['OutputValue']
+                if valueToGet in i["OutputKey"]:
+                    requestedValue = i['OutputValue']
                     return {"status": "success", "payload": requestedValue}
         except Exception as e:
             return {"status": "error", "payload": {"error": "Encountered an error when attempting to retrieve the value from the Cloud Formation Stack.", "traceback": ''.join(traceback.format_exc())}}

@@ -206,7 +206,7 @@ class JobScript(object):
                     sftpSession = values['payload']
                     # Upload the job script to the server
                     try:
-                        fileInfo = sftpSession.put(self.options['localPath'], self.options['remotePath'])
+                        sftpSession.put(self.options['localPath'], self.options['remotePath'])
                         return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
                     except Exception as e:
                         return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
@@ -296,7 +296,7 @@ class JobScript(object):
 
                 return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
             except Exception:
-                return {"status": "error", "payload": {"error": "There was a problem trying to upload the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
+                return {"status": "error", "payload": {"error": "There was a problem trying to download the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
 
 
     def processJobScript(self):

@@ -18,6 +18,27 @@ class GcpResources(Resource):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a google api session.", "traceback": ''.join(traceback.format_exc())}}
 
+    def getStartupKey(self, instance):
+        try:
+            client = self.createClient("compute", "v1")["payload"]
+            correct_key = None
+            counter = 0
+            while not correct_key and counter < 5:
+                request = client.instances().get(project=self.controlParameters['projectid'], zone=self.controlParameters['zone'], instance=instance)
+                response = request.execute()
+                metadata = response["metadata"]
+                if "items" in metadata:
+                    for attribute in metadata["items"]:
+                        if attribute["key"] == "startup_key":
+                            correct_key = attribute["value"]
+                            return correct_key
+                time.sleep(20)
+                counter += 1
+            if not correct_key:
+                return {"status": "error", "payload": {"error": "startup_key not found", "traceback": "".join(traceback.format_stack())}}
+        except Exception as e:
+            return {"status": "error", "payload": {"error": "There was an error trying to get the startup key.", "traceback": ''.join(traceback.format_exc())}}
+
     def createControlResources(self, templateLocation, resourceName, options):
         # Launch a Control Node through gcp and return the id
         print(vars(self))
@@ -55,9 +76,9 @@ class GcpResources(Resource):
                     result = client.instances().list(project=options['projectid'], zone=options['zone'], filter='(status eq RUNNING) (name eq ' + str(resourceName) + ')').execute()
                     #print str(result)
                     remoteIp = result['items'][0]['networkInterfaces'][0]['accessConfigs'][0]['natIP']
-                    instanceName = result["items"][0]["name"]
+                    instance = result["items"][0]["name"]
                     #return {"status": "success", "payload": request['name'], "controlIP": str(remoteIp)}
-                    return {"status": "success", "payload": str(remoteIp), "instanceName": instanceName}
+                    return {"status": "success", "payload": str(remoteIp), "instance": instance}
             else:
                 print("You have waited " + str(counter) + " minutes for the Control Resources to enter the requested state.")
                 counter += 1

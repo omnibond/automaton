@@ -48,23 +48,9 @@ class CloudyCluster(Environment):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an error when trying to create the session.", "traceback": ''.join(traceback.format_exc(e))}}
 
-    def validateControl(self, resourceClass, instanceName):
+    def validateControl(self, resourceClass, instance):
         try:
-            client = resourceClass.createClient("compute", "v1")["payload"]
-            correct_key = None
-            counter = 0
-            while not correct_key and counter < 5:
-                request = client.instances().get(project=self.controlParameters['projectid'], zone=self.controlParameters['zone'], instance=instanceName)
-                response = request.execute()
-                metadata = response["metadata"]
-                if "items" in metadata:
-                    for attribute in metadata["items"]:
-                        if attribute["key"] == "startup_key":
-                            correct_key = attribute["value"]
-                time.sleep(20)
-                counter += 1
-            if not correct_key:
-                return {"status": "error", "payload": {"error": "startup_key not found", "traceback": "".join(traceback.format_stack())}}
+            correct_key = resourceClass.getStartupKey(instance)["payload"]
             url = "https://"+self.dnsName+"/srv/validateInstance"
             r = requests.post(url, json = {"key": correct_key})
             jar = r.cookies
@@ -109,7 +95,10 @@ class CloudyCluster(Environment):
         else:
             print("Successfully started the creation of the Control Resources. Now monitoring to determine when the resources are up and running.")
             resourceId = values['payload']
-            instanceName = values["instanceName"]
+            if "instance" in values:
+                instance = values["instance"]
+            else:
+                instance = resourceName
             if str(self.cloudType) == "aws":
                 f = open('infoFile', 'w')
                 f.write("controlResources="+str(resourceId)+"\n")
@@ -157,7 +146,7 @@ class CloudyCluster(Environment):
                             return {"status": "error", "payload": values['payload']}
                         else:
                             print("Successfully obtained the newly created Database Table names.")
-                            stuff = self.validateControl(resourceClass, instanceName)
+                            stuff = self.validateControl(resourceClass, instance)
                             if stuff["status"] != "success":
                                 if "File failed to validate" in str(stuff['payload']['error']):
                                     return {"status": "error", "payload": {"error": "The .pem key file location specified in the configuration file does not match the .pem key file used to launch the instances. Please check the key and try again.", "traceback": ''.join(traceback.format_stack())}}

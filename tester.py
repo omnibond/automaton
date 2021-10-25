@@ -30,33 +30,49 @@ class Job:
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.name}>"
 
-    def save_job(self):
-        self.job_text(self.job_file)
+    def save_job(self, cloudType):
+        self.job_text(self.job_file, cloudType)
         self.job_file.close()
 
-    def job_text(self, f):
+    def job_text(self, f, cloudType):
         raise Exception("job_text undefined")
 
-    def config(self, n):
+    def config(self, n, cloudType):
         if self.monitor:
             monitor = "true"
         else:
             monitor = "false"
-        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}",
-        "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
+        if cloudType == "gcp":
+            return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}",
+            "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
+
+        if cloudType == "aws":
+            return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         pass
+
+    def parameters(self):
+        ""
     
     def cleanup_job(self):
         os.unlink(self.job_path)
 
 class MPIPreliminaryJob(Job):
-    def job_text(self, f):
-        f.write("""#!/bin/sh
+    def job_text(self, f, cloudType):
+        if cloudType == "gcp":
+            f.write("""#!/bin/sh
 #SBATCH -N 1
 cp -Rp /software/samplejobs /mnt/orangefs
 cd /mnt/orangefs/samplejobs/mpi/GCP
+sh mpi_prime_compile.sh
+""")
+
+        else:
+            f.write("""#!/bin/sh
+#SBATCH -N 1
+cp -Rp /software/samplejobs /mnt/orangefs
+cd /mnt/orangefs/samplejobs/mpi/AWS
 sh mpi_prime_compile.sh
 """)
 
@@ -70,16 +86,16 @@ class MPIJob(Job):
 
         super().__init__(name, output_dir, monitor=False)
 
-    def job_text(self, f):
+    def job_text(self, f, cloudType):
         f.write(f"""#!/bin/sh
 #SBATCH -N {self.nodes}
 #SBATCH --ntasks-per-node={self.processes}
 """)
-
-        if self.instance_type:
-            f.write(f"#CC -gcpit {self.instance_type}\n")
-        if self.preemptible:
-            f.write("#CC -gcpup\n")
+        if cloudType == "gcp":
+            if self.instance_type:
+                f.write(f"#CC -gcpit {self.instance_type}\n")
+            if self.preemptible:
+                f.write("#CC -gcpup\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/3.0.0
@@ -125,13 +141,25 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
             self.success = False
             logger.error("There was a problem with the job. Please check the output files")
 
+    def parameters(self):
+        return ("%2d, %2d" % (self.nodes, self.processes))
+
 class GPUJob(Job):
-    def job_text(self, f):
-        f.write("""#!/bin/sh
+    def job_text(self, f, cloudType):
+        if cloudType == "gcp":
+            f.write("""#!/bin/sh
 #SBATCH -N 1
 #CC -gcpgpu
 #CC -gcpgpusp 1:nvidia-tesla-p100
 #CC -gcpit n1-standard-1
+nvidia-smi
+[ $? -eq 0 ] && echo NVIDIA-SMI successful
+""")
+
+        else:
+            f.write("""#!/bin/sh
+#SBATCH -N 1
+#CC -it g3.4xlarge
 nvidia-smi
 [ $? -eq 0 ] && echo NVIDIA-SMI successful
 """)
@@ -151,7 +179,7 @@ nvidia-smi
             f.close()
 
 class OrangeFSJob(Job):
-    def job_text(self, f):
+    def job_text(self, f, cloudType):
         f.write("""#!/bin/sh
 #SBATCH -N 1
 pvfs2-ping -m /mnt/orangefs
@@ -164,6 +192,24 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
         if error == None or output == None:
             logger.error("Error: %s does not have the required files for checking output" % self.name)
             self.success = False
+        else:
+            f = open(error, "r")
+            string = f.read()
+            f.close
+            i = 0
+            for thing in string:
+                print("(for FS)This is %d: %s" % (i, string[thing]))
+                i += 1
+            r = r"^1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, [0-9]+ MB/s\n1024+0 records in\n1024+0 records out\n1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, ([0-9]+(|\.[0-9]+)) MB/s$"
+            m = re.search(r, string)
+            if m:
+                logger.info("The job %s was a success" % self.name)
+                x = float(m.group(1))
+                logger.info("match %f seconds" % x)
+
+    def parameters():
+        # 1073741824 bytes (1.1 GB) copied,
+        pass
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -250,9 +296,8 @@ def main():
 
     try:
         username = cp.get("tester", "username")
-        project_name = cp.get("tester", "project_name")
+        cloudType = cp.get("tester", "cloudType")
         sourceimage = cp.get("tester", "sourceimage")
-        service_account = cp.get("tester", "service_account")
         ssh_private_key = cp.get("tester", "ssh_private_key")
         ssh_public_key = cp.get("tester", "ssh_public_key")
         dev_image = cp.get("tester", "dev_image")
@@ -265,6 +310,14 @@ def main():
     except configparser.NoOptionError as e:
         logger.critical("missing configuration option: %s", e.option)
         sys.exit(1)
+
+    if cloudType == "gcp":
+        project_name = cp.get("tester", "project_name")
+        service_account = cp.get("tester", "service_account")
+        confFile = "gcp_tester.conf"
+    else:
+        confFile = "aws_tester.conf"
+        KeyName = cp.get("tester", "KeyName")
 
     try:
         output_part1 = cp.get("tester", "output_part1")
@@ -322,14 +375,13 @@ def main():
     
     logger.info(f"The start time is: {output_part2}")
 
-    os.chdir("../CloudyCluster")
-    output, fail = run(["git", "pull"], die=False)
-    if fail and "fatal: Could not read from remote repository" in output:
-        logger.warning("could not update CloudyCluster; continuing anyway")
-    os.chdir("..")
     
     if not dev_image:
-        os.chdir("CloudyCluster/Build")
+        os.chdir("../CloudyCluster")
+        output, fail = run(["git", "pull", "--ff-only"], die=False)
+        if fail and "fatal: Could not read from remote repository" in output:
+            logger.warning("could not update CloudyCluster; continuing anyway")
+        os.chdir("Build")
         current_build = run(["git", "describe", "--always"])[0].strip()
         compute = googleapiclient.discovery.build("compute", "v1")
         images = compute.images().list(project=project_name).execute()
@@ -381,7 +433,7 @@ def main():
                 logger.critical("there was an error creating the image")
                 sys.exit(1)
 
-        os.chdir("../..")
+        os.chdir("../../automaton")
 
         ready = False
         while not ready:
@@ -403,8 +455,6 @@ def main():
     logger.info(f"cluster password: {password}")
     logger.info(f"Using image {testimage}")
 
-    os.chdir("automaton")
-
     config = configparser.ConfigParser()
 
     config.read_file(open(job_config))
@@ -425,12 +475,65 @@ def main():
     job_config = ""
     i = 0
     for job in jobs:
-        job.save_job()
-        job_config = job_config + job.config(i) + "\n"
+        job.save_job(cloudType)
+        job_config = job_config + job.config(i, cloudType) + "\n"
         i = i + 1
 
-    f = open("ConfigurationFiles/gcp_tester.conf", "w")
-    f.write(f"""[UserInfo]
+    if cloudType == "aws":
+        f = open(f"ConfigurationFiles/{confFile}", "w")
+        f.write(f"""[UserInfo]
+userName: {username}
+password: {password}
+firstName: {username}
+lastName:
+pempath: {ssh_private_key}
+
+[General]
+environmentName: {username}
+cloudType: aws
+
+[CloudyClusterAws]
+# Specifies which AWS credentials profile to use from the ~/.aws/credentials file
+#profile: myprofile
+keyName: {KeyName}
+instanceType: t3a.small
+networkCidr: 0.0.0.0/0
+vpc: vpc-06fb757c0f62fb123
+publicSubnet: subnet-0dcfc3e929b819e84
+capabilities: CAPABILITY_IAM
+region: us-west-1
+templateLocation: cloudyClusterCloudFormationTemplate.json
+
+# Can use a pre-created template if the user doesn't want to do the advanced stuff
+# This is the section that will be run when spinning up a new environment
+[CloudyClusterEnvironment]
+templateName: tester_template
+keyName: {KeyName}
+region: us-west-1
+az: us-west-1c
+
+[Computation]
+#jobScript1: {{"name": "testScript", "options": {{"uploadProtocol": "sftp", "uploadScript": "true", "localPath": "/home/path/test.sh", "remotePath": "/mnt/efsdata", "executeDirectory": "/mnt/efsdata"}}}}
+#workflow1: {{"name": "myWorkflow", "type": "topicModelingPipeline", "options": {{"configFilePath": "/home/path/sample_experiment.py", "sharedFilesystemPath": "/home/path", "pullFromS3": "true", "s3BucketName": "testbucket"}}, "useCCQ": "true", "spotPrice": "0.60", "requestedInstanceTypes": "c4.8xlarge,c4.4xlarge", "schedulerType": "Slurm", "schedulerToUse": "Slurm"}}
+
+{job_config}
+
+# Template definitions
+[tester_template]
+description: Creates a CloudyCluster Environment that contains a single t3a.small CCQ enabled Slurm Scheduler, a t3a.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t3a.micro NAT instance.
+vpcCidr: 10.0.0.0/16
+fsChoice: OrangeFS
+scheduler1: {{'type': 'Slurm', 'ccq': 'true', 'instanceType': 't3a.small', 'name': 'mySlurm', "fsChoice": "OrangeFS"}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "t3a.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+efs1: {{"type": "common"}}
+login1: {{'name': 'Login', 'instanceType': 't3a.small', "fsChoice": "OrangeFS"}}
+nat1: {{'instanceType': 't3a.micro', 'accessFrom': '0.0.0.0/0'}}
+""")
+        f.close()
+
+    else:
+        f = open(f"ConfigurationFiles/{confFile}", "w")
+        f.write(f"""[UserInfo]
 userName: {username}
 password: {password}
 firstName: {username}
@@ -481,11 +584,11 @@ filesystem1: {{"numberOfInstances": 4, "instanceType": "g1-small", "name": "oran
 login1: {{'name': 'login', 'instanceType': 'g1-small', 'fsChoice': 'OrangeFS'}}
 nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
 """)
-    f.close()
+        f.close()
 
-    run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")
+    run(["python3", "CreateEnvironmentTemplates.py", "-et", "CloudyCluster", "-cf", f"ConfigurationFiles/{confFile}", "-tn", "tester_template"], timeout=30, output=output_dir + "/template.log")
 
-    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-all", "-nd"], timeout=7200, die=False, output=output_dir + "/automaton.log")
+    running_automaton, fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", f"ConfigurationFiles/{confFile}", "-all", "-nd"], timeout=7200, die=False, output=output_dir + "/automaton.log")
 
     for job in jobs:
         job.cleanup_job()
@@ -523,10 +626,10 @@ nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
     for job in jobs:
         logger.info(f"job: {job}")
         if not job.success:
-            logger.info("fail")
+            logger.info("%-20s %-20s %-20s" % (job, job.parameters, "failed"))
             fail_count += 1
         else:
-            logger.info("succeed")
+            logger.info("%-20s %-20s %-20s" % (job, job.parameters, "succeeded"))
             success_count += 1
 
     if fail_count != 0:
@@ -567,14 +670,14 @@ Full output is available at {output_url}{output_part2}.
     if "failed" in status:
         if delete_on_failure:
             logger.error("There was a problem with the last run of automaton. Initiating a cleanup.")
-            fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)[1]
+            fail = run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", f"ConfigurationFiles/{confFile}", "-dff"], timeout=3600, die=False)[1]
 
             if fail:
                 logger.critical("Could not cleanup. You will have to manually delete the created resources.")
                 sys.exit(1)
 
     elif "succeeded" in status:
-        run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", "ConfigurationFiles/gcp_tester.conf", "-dff"], timeout=3600, die=False)
+        run(["python3", "Create_Processing_Environment.py", "-et", "CloudyCluster", "-cf", f"ConfigurationFiles/{confFile}", "-dff"], timeout=3600, die=False)
 
     end = time.strftime("%Y%m%d-%H%M")
     logger.info(f"The end time is: {end}")
