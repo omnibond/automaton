@@ -1,8 +1,17 @@
 [tester]
 ;the username for the created cluster
 username = USER
+;set cloudType as aws or gcp
+cloudType = aws/gcp
+;KeyName is for aws only
+KeyName = YOUR KEYPAIR NAME
+;project_name is for gcp only
 project_name = cloudyclusterfirebasedev
+;sourceimage for gcp
 sourceimage = projects/cloudyclusterfirebasedev/global/images/IMAGE
+;sourceimage for aws
+sourceimage = ami-IMAGE
+service_account for gcp only
 service_account = SERVICE_ACCOUNT
 ssh_private_key = /home/USER/.ssh/id_rsa
 ssh_public_key = /home/USER/.ssh/id_rsa.pub
