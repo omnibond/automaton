@@ -1,2 +1,6 @@
 *.pyc
 .idea
+infoFile
+jobtest.config
+paramiko.log
+tester.config
