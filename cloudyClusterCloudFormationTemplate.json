@@ -20,7 +20,7 @@
     "InstanceType": {
       "Description": "Select the CloudyCluster Control Instance type you will launch.",
       "Type": "String",
-	  "Default" : "t3a.small",
+	  "Default" : "t3.small",
       "AllowedValues": [
         "c3.2xlarge",
         "c3.4xlarge",
@@ -98,12 +98,12 @@
         "r4.8xlarge",
         "r4.large",
         "r4.xlarge",
-        "t3a.2xlarge",
-        "t3a.large",
-        "t3a.medium",
-        "t3a.micro",
-        "t3a.small",
-        "t3a.xlarge",
+        "t3.2xlarge",
+        "t3.large",
+        "t3.medium",
+        "t3.micro",
+        "t3.small",
+        "t3.xlarge",
         "x1.16xlarge",
         "x1.32xlarge",
         "x1e.xlarge",
@@ -347,22 +347,22 @@
       "r4.xlarge": {
         "Arch": "64"
       },
-      "t3a.2xlarge": {
+      "t3.2xlarge": {
         "Arch": "64"
       },
-      "t3a.large": {
+      "t3.large": {
         "Arch": "64"
       },
-      "t3a.medium": {
+      "t3.medium": {
         "Arch": "64"
       },
-      "t3a.micro": {
+      "t3.micro": {
         "Arch": "64"
       },
-      "t3a.small": {
+      "t3.small": {
         "Arch": "64"
       },
-      "t3a.xlarge": {
+      "t3.xlarge": {
         "Arch": "64"
       },
       "x1.16xlarge": {
@@ -390,7 +390,7 @@
         "64": "ami-0cd23dacc407633e5"
       },
       "us-west-2": {
-        "64": "ami-347ccb4c"
+        "64": "ami-014370c69445f1f76"
       },
       "us-gov-1": {
         "64": "ami-dc6ae3bd"

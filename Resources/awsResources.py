@@ -140,7 +140,9 @@ class AwsResources(Resource):
                 resourceStatus = stackDict['ResourceStatus']
                 resourceType = stackDict['ResourceType']
                 try:
-                    resourceStatusReason = stackDict['ResourceStatusReason']
+                    for dict in stackEvents["StackEvents"]:
+                        if "ResourceStatusReason" in dict:
+                            resourceStatusReason = dict["ResourceStatusReason"]
                 except Exception as e:
                     resourceStatusReason = ""
                     print(traceback.format_exc())

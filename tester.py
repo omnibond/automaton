@@ -76,6 +76,24 @@ cd /mnt/orangefs/samplejobs/mpi/AWS
 sh mpi_prime_compile.sh
 """)
 
+    def output(self, output, error):
+        if error == None or output == None:
+            logger.error("Error: %s does not have the required files for checking output" % self.name)
+            self.success = False
+        f = open(f"{self.output_dir}/automaton.log", "r")
+        for line in f:
+            if line.startswith(f"The execution of the jobscript: {self.name} was successful."):
+                s = open(output, "w")
+                s.write(f"Preliminary job {self.name} was successful.")
+                s.close()
+            elif line.startswith(f"The execution of the jobscript: {self.name} failed."):
+                s = open(error, "w")
+                s.write(f"Preliminary job {self.name} failed.")
+                s.close
+                self.success = False
+        f.close()
+        
+
 class MPIJob(Job):
     def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False):
         self.nodes = nodes
@@ -197,19 +215,18 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
             string = f.read()
             f.close
             i = 0
-            for thing in string:
-                print("(for FS)This is %d: %s" % (i, string[thing]))
+            s = []
+            for thing in string.split(" "):
+                s.append(thing)
                 i += 1
             r = r"^1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, [0-9]+ MB/s\n1024+0 records in\n1024+0 records out\n1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, ([0-9]+(|\.[0-9]+)) MB/s$"
             m = re.search(r, string)
             if m:
                 logger.info("The job %s was a success" % self.name)
-                x = float(m.group(1))
-                logger.info("match %f seconds" % x)
+                logger.info(f"It took {s[9]} s at {s[11]} MB/s to read.\nIt took {s[21]} s at {s[23]} MB/s to write.")
+            else:
+                logger.error(f"Error: the file for {self.name} had an unexpected value. Please check {error} for more information.")
 
-    def parameters():
-        # 1073741824 bytes (1.1 GB) copied,
-        pass
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -304,6 +321,8 @@ def main():
         job_config = cp.get("tester", "job_config")
         delete_on_failure = cp.get("tester", "delete_on_failure")
         email_flag = cp.get("tester", "email_flag")
+        region = cp.get("tester", "region")
+        az = cp.get("tester", "az")
     except configparser.NoSectionError:
         logger.critical("missing configuration section")
         sys.exit(1)
@@ -318,6 +337,8 @@ def main():
     else:
         confFile = "aws_tester.conf"
         KeyName = cp.get("tester", "KeyName")
+        vpc_id = cp.get("tester", "vpc_id")
+        subnet_id = cp.get("tester", "subnet_id")
 
     try:
         output_part1 = cp.get("tester", "output_part1")
@@ -496,12 +517,12 @@ cloudType: aws
 # Specifies which AWS credentials profile to use from the ~/.aws/credentials file
 #profile: myprofile
 keyName: {KeyName}
-instanceType: t3a.small
+instanceType: t3.small
 networkCidr: 0.0.0.0/0
-vpc: vpc-06fb757c0f62fb123
-publicSubnet: subnet-0dcfc3e929b819e84
+vpc: {vpc_id}
+publicSubnet: {subnet_id}
 capabilities: CAPABILITY_IAM
-region: us-west-1
+region: {region}
 templateLocation: cloudyClusterCloudFormationTemplate.json
 
 # Can use a pre-created template if the user doesn't want to do the advanced stuff
@@ -509,8 +530,8 @@ templateLocation: cloudyClusterCloudFormationTemplate.json
 [CloudyClusterEnvironment]
 templateName: tester_template
 keyName: {KeyName}
-region: us-west-1
-az: us-west-1c
+region: {region}
+az: {az}
 
 [Computation]
 #jobScript1: {{"name": "testScript", "options": {{"uploadProtocol": "sftp", "uploadScript": "true", "localPath": "/home/path/test.sh", "remotePath": "/mnt/efsdata", "executeDirectory": "/mnt/efsdata"}}}}
@@ -520,14 +541,14 @@ az: us-west-1c
 
 # Template definitions
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single t3a.small CCQ enabled Slurm Scheduler, a t3a.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t3a.micro NAT instance.
+description: Creates a CloudyCluster Environment that contains a single t3.small CCQ enabled Slurm Scheduler, a t3.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t3.micro NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': 'Slurm', 'ccq': 'true', 'instanceType': 't3a.small', 'name': 'mySlurm', "fsChoice": "OrangeFS"}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "t3a.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+scheduler1: {{'type': 'Slurm', 'ccq': 'true', 'instanceType': 't3.small', 'name': 'mySlurm', "fsChoice": "OrangeFS"}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "t3.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
 efs1: {{"type": "common"}}
-login1: {{'name': 'Login', 'instanceType': 't3a.small', "fsChoice": "OrangeFS"}}
-nat1: {{'instanceType': 't3a.micro', 'accessFrom': '0.0.0.0/0'}}
+login1: {{'name': 'Login', 'instanceType': 't3.small', "fsChoice": "OrangeFS"}}
+nat1: {{'instanceType': 't3.micro', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 
@@ -552,8 +573,8 @@ smtp:
 keyName: {username}
 instanceType: g1-small
 networkCidr: 0.0.0.0/0
-region: us-east1
-zone: us-east1-b
+region: {region}
+zone: {az}
 pubkeypath: {ssh_public_key}
 sshkeyuser: {username}
 sourceimage: {testimage}
@@ -565,8 +586,8 @@ serviceaccountemail: {service_account}
 [CloudyClusterEnvironment]
 templateName: tester_template
 keyName: {username}
-region: us-east1
-az: us-east1-b
+region: {region}
+az: {az}
 
 [Computation]
 # workflow1: {{"name": "gcpLargeRun", "type": "videoAnalyticsPipeline", "options": {{"instanceType": "c2-standard-4", "numberOfInstances": "2", "submitInstantly": "True", "usePreemptibleInstances": "true", "maintainPreemptibleSize": "true", "trafficVisionDir": "/software/trafficvision/", "bucketListFile": "list-us-east1", "generatedJobScriptDir": "generated_job_scripts", "trafficVisionExecutable": "process_clip.py", "jobGenerationScript": "generateJobScriptsFromBucketListFile.py", "jobPrefixString": "tv_processing_", "clip_to_start_on": "0", "clip_to_end_on": "100", "useCCQ": "true", "schedulerType": "Slurm", "schedulerToUse": "slurm", "skipProvisioning": "true", "timeLimit": "28800", "createPlaceholderInstances": "True"}}}}

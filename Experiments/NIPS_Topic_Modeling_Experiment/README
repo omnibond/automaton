@@ -42,7 +42,7 @@ useCCQ: tells ccAutomaton whether or not to use CCQ for the job submission. In t
 
 spotPrice: specifies the Spot price for each instance type requested. This can be a single price or a list of prices but the number of prices must match the number of instance types listed in the requestedInstanceTypes parameter. (ex: 0.10 | 0.10,0.20)
 
-requestedInstanceTypes: specifies the instance types that will be use to run the workflow. This can be a single instance type or a list of instance types. (ex: t3a.small | t3a.small,t3a.large)
+requestedInstanceTypes: specifies the instance types that will be use to run the workflow. This can be a single instance type or a list of instance types. (ex: t3.small | t3.small,t3.large)
 
 schedulerToUse: the name of the CloudyCluster Scheduler to use. This name must match the name assigned to the scheduler within CloudyCluster. (ex: myScheduler)
 
