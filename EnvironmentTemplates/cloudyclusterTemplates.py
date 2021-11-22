@@ -471,9 +471,13 @@ class CloudyClusterTemplate(EnvironmentTemplate):
 
             for file in os.listdir(os.path.join(os.path.dirname(__file__), str(self.environmentType))):
                 splitFile = str(file).split(".")
-                if splitFile[1] == "py":
-                    module = __import__(splitFile[0])
-                    templateList[splitFile[0]] = str(module.description)
+                try:
+                    if splitFile[1] == "py":
+                        module = __import__(splitFile[0])
+                        templateList[splitFile[0]] = str(module.description)
+                except IndexError:
+                    print(f"{file} isn't a python file")
+                    pass
             return {"status": "success", "payload": templateList}
         except Exception as e:
             return {"status": "error", "payload": {"error": "Unable to get the template specified.", "traceback": ''.join(traceback.format_exc())}}

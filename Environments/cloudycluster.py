@@ -50,7 +50,7 @@ class CloudyCluster(Environment):
 
     def validateControl(self, resourceClass, instance):
         try:
-            correct_key = resourceClass.getStartupKey(instance)["payload"]
+            correct_key = resourceClass.getStartupKey(instance, self.controlParameters)["payload"]
             url = "https://"+self.dnsName+"/srv/validateInstance"
             r = requests.post(url, json = {"key": correct_key})
             jar = r.cookies

@@ -18,20 +18,20 @@ class GcpResources(Resource):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a google api session.", "traceback": ''.join(traceback.format_exc())}}
 
-    def getStartupKey(self, instance):
+    def getStartupKey(self, instance, options):
         try:
             client = self.createClient("compute", "v1")["payload"]
             correct_key = None
             counter = 0
             while not correct_key and counter < 5:
-                request = client.instances().get(project=self.controlParameters['projectid'], zone=self.controlParameters['zone'], instance=instance)
+                request = client.instances().get(project=options['projectid'], zone=options['zone'], instance=instance)
                 response = request.execute()
                 metadata = response["metadata"]
                 if "items" in metadata:
                     for attribute in metadata["items"]:
                         if attribute["key"] == "startup_key":
                             correct_key = attribute["value"]
-                            return correct_key
+                            return {"status": "success", "payload": correct_key}
                 time.sleep(20)
                 counter += 1
             if not correct_key:

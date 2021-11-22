@@ -38,7 +38,7 @@ class AwsResources(Resource):
         except Exception as e:
             return {"status": "error", "payload": {"error": "There was an exception encountered when trying to obtain a Botocore session to" + str(service) + ".", "traceback": ''.join(traceback.format_exc())}}
 
-    def getStartupKey(self, instance):
+    def getStartupKey(self, instance, options):
         try:
             client = self.createBotocoreClient("cloudformation")["payload"]
             correct_key = None

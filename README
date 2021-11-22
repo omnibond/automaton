@@ -22,9 +22,9 @@ ccAutomaton Template Generator Arguments (these can also be found by using the -
 -h                    Print help.
 
 Running the ccAutomaton template generator can be done utilizing the following commands:
-Create a new template: python3 CreateEnvironmentTemplate.py -et CloudyCluster -cf <myConfigurationFile> -tn <templateName>
-List currently created templates: python3 CreateEnvironmentTemplate.py -et CloudyCluster -lt
-Delete created template: python3 CreateEnvironmentTemplate.py -et CloudyCluster -dt -tn <templateName>
+Create a new template: python3 CreateEnvironmentTemplates.py -et CloudyCluster -cf <myConfigurationFile> -tn <templateName>
+List currently created templates: python3 CreateEnvironmentTemplates.py -et CloudyCluster -lt
+Delete created template: python3 CreateEnvironmentTemplates.py -et CloudyCluster -dt -tn <templateName>
 
 #########################
 #      Running ccAutomaton      #
