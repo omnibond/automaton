@@ -3,8 +3,13 @@
 username = USER
 ;set cloudType as aws or gcp
 cloudType = aws/gcp
-;KeyName is for aws only
+;KeyName, vpc_id and subnet_id is for aws only
 KeyName = YOUR KEYPAIR NAME
+;vpc_id = YOUR VPC ID
+;subnet_id = YOUR SUBNET ID
+region = YOUR REGION
+az = YOUR AVAILABILITY ZONE
+scheduler = Torque/Slurm
 ;project_name is for gcp only
 project_name = cloudyclusterfirebasedev
 ;sourceimage for gcp
