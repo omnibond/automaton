@@ -588,11 +588,7 @@ def main():
                 print("%d jobs are done" % done)
             else:
                 print("No jobs are done")
-                        
-        # monitor jobIds in jobIdDict
-        # at this point they should've been submitted and we have to get all the ids and monitor them
-        # so we don't get to delete until they've finished running
-        # and of course we have to check on their status (Completed) and copy output
+
 
     if "de" in stagesToRun:
         print("Getting session to Control Resource.")
