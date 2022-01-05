@@ -507,6 +507,7 @@
             "Sid": "Stmt1442276285214",
             "Action": [
               "ec2:AcceptVpcPeeringConnection",
+              "ec2:AllocateAddress",
               "ec2:AssociateRouteTable",
               "ec2:AttachClassicLinkVpc",
               "ec2:AttachInternetGateway",
