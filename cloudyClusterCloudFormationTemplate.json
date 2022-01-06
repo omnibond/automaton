@@ -516,6 +516,7 @@
               "ec2:AuthorizeSecurityGroupEgress",
               "ec2:AuthorizeSecurityGroupIngress",
               "ec2:CreateInternetGateway",
+              "ec2:CreateNatGateway",
               "ec2:CreateNetworkAcl",
               "ec2:CreateNetworkAclEntry",
               "ec2:CreateNetworkInterface",
