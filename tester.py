@@ -174,24 +174,18 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 class GPUJob(Job):
     def job_text(self, f, cloudType, scheduler):
         if scheduler == "Slurm":
-            sched_type = "#SBATCH -N 1"
+            sched = "#SBATCH -N 1"
         elif scheduler == "Torque":
-            sched_type = "#PBS -l nodes=1"
+            sched = "#PBS -l nodes=1"
         if cloudType == "gcp":
-            f.write(f"""#!/bin/sh
-{sched_type}
-#CC -gcpgpu
+            ccq = """#CC -gcpgpu
 #CC -gcpgpusp 1:nvidia-tesla-p100
-#CC -gcpit n1-standard-1
-nvidia-smi
-[ $? -eq 0 ] && echo NVIDIA-SMI successful
-""")
-
-        else:
-            f.write(f"""#!/bin/sh
-{sched_type}
-#CC -it g3.4xlarge
-nvidia-smi
+#CC -gcpit n1-standard-1"""
+        elif cloudType == "aws":
+            ccq = "#CC -it g3.4xlarge"
+        f.write(f"""#!/bin/sh
+{sched}
+{ccq}
 [ $? -eq 0 ] && echo NVIDIA-SMI successful
 """)
 
