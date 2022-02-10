@@ -11,6 +11,7 @@ import sys
 import tempfile
 import termios
 import time
+import json
 
 import googleapiclient.discovery
 
@@ -99,12 +100,13 @@ sh mpi_prime_compile.sh
         
 
 class MPIJob(Job):
-    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False):
+    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False, count=1):
         self.nodes = nodes
         self.processes = processes
         self.instance_type = instance_type
         self.preemptible = preemptible
         self.expected_fail = expected_fail
+        self.count = count
 
         super().__init__(name, output_dir, monitor=False)
 
@@ -127,25 +129,31 @@ class MPIJob(Job):
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/3.0.0
 cd $SHARED_FS_NAME/samplejobs/mpi
-mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+""")
+
+        for i in range(self.count):
+            f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """)
 
     def output(self, output, error):
         error_flag = False
         unexpected_output = False
         if error == None or output == None:
-            logger.error("Error: %s does not have the required files for checking output" % self.name)
+            logger.error(f"Error: {self.name} does not have the required files for checking output")
             error_flag = True
         else:
             f = open(output, "r")
             string = f.read()
             f.close()
-            r = r"^Using [0-9]+ tasks to scan [0-9]+ numbers\nDone. Largest prime is [0-9]+ Total primes [0-9]+\nWallclock time elapsed: ([0-9]+(|\.[0-9]+)) seconds\n$"
+            r = "^"
+            for num in range(self.count):
+                r = r + r"Using [0-9]+ tasks to scan [0-9]+ numbers\nDone. Largest prime is [0-9]+ Total primes [0-9]+\nWallclock time elapsed: ([0-9]+(|\.[0-9]+)) seconds\n"
+            r = r + "$"
             m = re.search(r, string)
             if m:
-                logger.info("The job %s was a success" % self.name)
+                logger.info(f"The job {self.name} was a success")
                 x = float(m.group(1))
-                logger.info("match %f seconds" % x)
+                logger.info(f"match {x:.2f} seconds")
             else:
                 unexpected_output = True
 
@@ -160,9 +168,9 @@ mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 
             if self.expected_fail:
                 if string.startswith("Sorry - this exercise requires an even number of tasks.") and not error_flag:
-                    logger.info("The test %s failed as expected" % self.name)
+                    logger.info(f"The test {self.name} failed as expected")
                 else:
-                    logger.error("The test %s did not fail as expected" % self.name)
+                    logger.error(f"The test {self.name} did not fail as expected")
 
         if error_flag or (unexpected_output and not self.expected_fail):
             self.success = False
@@ -238,6 +246,9 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
             else:
                 logger.error(f"Error: the file for {self.name} had an unexpected value. Please check {error} for more information.")
 
+class ClusterCheckerJob(Job):
+    def job_text(self, f, cloudtype, scheduler):
+        pass
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -531,7 +542,7 @@ cloudType: aws
 # Specifies which AWS credentials profile to use from the ~/.aws/credentials file
 #profile: myprofile
 keyName: {KeyName}
-instanceType: t3.small
+instanceType: t2.small
 networkCidr: 0.0.0.0/0
 vpc: {vpc_id}
 publicSubnet: {subnet_id}
@@ -555,15 +566,25 @@ az: {az}
 
 # Template definitions
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single t3.small CCQ enabled {scheduler} Scheduler, a t3.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t3.micro NAT instance.
+description: Creates a CloudyCluster Environment that contains a single t2.small CCQ enabled {scheduler} Scheduler, a t2.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t2.micro NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': 't3.small', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "t3.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': 't2.small', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "t2.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
 efs1: {{"type": "common"}}
-login1: {{'name': 'Login', 'instanceType': 't3.small', "fsChoice": "OrangeFS"}}
-nat1: {{'instanceType': 't3.micro', 'accessFrom': '0.0.0.0/0'}}
+login1: {{'name': 'Login', 'instanceType': 't2.small', "fsChoice": "OrangeFS"}}
+nat1: {{'instanceType': 't2.micro', 'accessFrom': '0.0.0.0/0'}}
 """)
+        f.close()
+
+        f = open("cloudyClusterCloudFormationTemplate.json", "r+")
+
+        file_contents = json.loads(f.read())
+        f.close()
+        file_contents["Mappings"]["AWSRegionArch2AMI"][region]["64"] = sourceimage
+
+        f = open("cloudyClusterCloudFormationTemplate.json", "w")
+        f.write(json.dumps(file_contents, indent=2))
         f.close()
 
     else:

@@ -1,18 +1,14 @@
 {
   "Description": "Cloud Formation Template to launch a CloudyCluster Control Instance complete with IAM Role, Instance Profile, and Security Group. --AWSMP::73bcd10f-81b6-4fbb-b113-6e5e72ec1f89::7de8d4f3-0956-4c1f-a367-d052be3cfac7",
-
   "Parameters": {
-
     "KeyName": {
       "Description": "Select an existing EC2 KeyPair to enable SSH and initial web access to your CloudyCluster instance.",
       "Type": "AWS::EC2::KeyPair::KeyName"
     },
-
     "vpc": {
       "Description": "Select an exisiting VPC ID that contains a public subnet that you want to launch CloudyCluster in (i.e. vpc-xxxxxxxx).",
       "Type": "AWS::EC2::VPC::Id"
     },
-
     "PublicSubnet": {
       "Description": "Select an existing public subnet ID where CloudyCluster will launch.",
       "Type": "AWS::EC2::Subnet::Id"
@@ -20,7 +16,7 @@
     "InstanceType": {
       "Description": "Select the CloudyCluster Control Instance type you will launch.",
       "Type": "String",
-	  "Default" : "t3.small",
+      "Default": "t2.small",
       "AllowedValues": [
         "c3.2xlarge",
         "c3.4xlarge",
@@ -98,24 +94,24 @@
         "r4.8xlarge",
         "r4.large",
         "r4.xlarge",
-        "t3.2xlarge",
-        "t3.large",
-        "t3.medium",
-        "t3.micro",
-        "t3.small",
-        "t3.xlarge",
+        "t2.2xlarge",
+        "t2.large",
+        "t2.medium",
+        "t2.micro",
+        "t2.small",
+        "t2.xlarge",
         "x1.16xlarge",
         "x1.32xlarge",
         "x1e.xlarge",
         "x1e.32xlarge"
       ]
     },
-  "NetworkCIDR": {
+    "NetworkCIDR": {
       "Description": "Enter a network CIDR representing an address range that is permitted to access the launched instance (i.e., 176.32.2.0/24). You may enter 0.0.0.0/0 if you don't know your address range. NOTE: This will make the instance accessible to Internet but will allow you to use CloudyCluster. You can edit this later in the AWS Console.",
       "Type": "String",
       "AllowedPattern": "[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}/[0-9]{1,2}",
       "ConstraintDescription": "Please specify a valid source IP range. Eg: 176.32.2.0/24"
-  }
+    }
   },
   "Mappings": {
     "AWSInstanceType2Arch": {
@@ -347,22 +343,22 @@
       "r4.xlarge": {
         "Arch": "64"
       },
-      "t3.2xlarge": {
+      "t2.2xlarge": {
         "Arch": "64"
       },
-      "t3.large": {
+      "t2.large": {
         "Arch": "64"
       },
-      "t3.medium": {
+      "t2.medium": {
         "Arch": "64"
       },
-      "t3.micro": {
+      "t2.micro": {
         "Arch": "64"
       },
-      "t3.small": {
+      "t2.small": {
         "Arch": "64"
       },
-      "t3.xlarge": {
+      "t2.xlarge": {
         "Arch": "64"
       },
       "x1.16xlarge": {
@@ -378,7 +374,6 @@
         "Arch": "64"
       }
     },
-
     "AWSRegionArch2AMI": {
       "us-east-1": {
         "64": "ami-07510a7d"
@@ -390,7 +385,7 @@
         "64": "ami-0cd23dacc407633e5"
       },
       "us-west-2": {
-        "64": "ami-09e820695bce44eaa"
+        "64": "ami-0b4365188c07d9dea"
       },
       "us-gov-1": {
         "64": "ami-dc6ae3bd"
@@ -427,23 +422,24 @@
       }
     }
   },
-
   "Resources": {
     "CloudyClusterControlInstanceRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
-          "Statement": [{
-            "Effect": "Allow",
-            "Principal": {
-              "Service": [
-                "ec2.amazonaws.com"
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
               ]
-            },
-            "Action": [
-              "sts:AssumeRole"
-            ]
-          }]
+            }
+          ]
         },
         "Path": "/"
       }
@@ -453,252 +449,265 @@
       "Properties": {
         "PolicyName": "CloudyClusterControlInstancePolicy",
         "PolicyDocument": {
-          "Statement": [{
-            "Sid": "Stmt1442276049188",
-            "Action": [
-              "iam:AddRoleToInstanceProfile",
-              "iam:AttachRolePolicy",
-              "iam:CreateInstanceProfile",
-              "iam:CreatePolicy",
-              "iam:CreateRole",
-              "iam:DeleteInstanceProfile",
-              "iam:DeletePolicy",
-              "iam:DeleteRole",
-              "iam:DeleteRolePolicy",
-              "iam:DetachRolePolicy",
-              "iam:GetInstanceProfile",
-              "iam:GetPolicy",
-              "iam:GetRole",
-              "iam:GetRolePolicy",
-              "iam:GetSSHPublicKey",
-              "iam:ListAttachedGroupPolicies",
-              "iam:ListAttachedRolePolicies",
-              "iam:ListInstanceProfiles",
-              "iam:ListInstanceProfilesForRole",
-              "iam:ListRolePolicies",
-              "iam:ListPolicies",
-              "iam:ListRoles",
-              "iam:PassRole",
-              "iam:PutRolePolicy",
-              "iam:RemoveRoleFromInstanceProfile"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }, {
-            "Sid": "Stmt1442276116074",
-            "Action": [
-              "dynamodb:BatchGetItem",
-              "dynamodb:BatchWriteItem",
-              "dynamodb:CreateTable",
-              "dynamodb:DeleteItem",
-              "dynamodb:DeleteTable",
-              "dynamodb:DescribeTable",
-              "dynamodb:GetItem",
-              "dynamodb:ListTables",
-              "dynamodb:PutItem",
-              "dynamodb:Query",
-              "dynamodb:Scan",
-              "dynamodb:UpdateItem",
-              "dynamodb:UpdateTable"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }, {
-            "Sid": "Stmt1442276285214",
-            "Action": [
-              "ec2:AcceptVpcPeeringConnection",
-              "ec2:AllocateAddress",
-              "ec2:AssociateRouteTable",
-              "ec2:AttachClassicLinkVpc",
-              "ec2:AttachInternetGateway",
-              "ec2:AttachNetworkInterface",
-              "ec2:AttachVolume",
-              "ec2:AuthorizeSecurityGroupEgress",
-              "ec2:AuthorizeSecurityGroupIngress",
-              "ec2:CreateInternetGateway",
-              "ec2:CreateNatGateway",
-              "ec2:CreateNetworkAcl",
-              "ec2:CreateNetworkAclEntry",
-              "ec2:CreateNetworkInterface",
-              "ec2:CreatePlacementGroup",
-              "ec2:CreateRoute",
-              "ec2:CreateRouteTable",
-              "ec2:CreateSecurityGroup",
-              "ec2:CreateSubnet",
-              "ec2:CreateTags",
-              "ec2:CreateVolume",
-              "ec2:CreateVpc",
-              "ec2:CreateVpcPeeringConnection",
-              "ec2:DeleteInternetGateway",
-              "ec2:DeleteNetworkAcl",
-              "ec2:DeleteNetworkAclEntry",
-              "ec2:DeleteNetworkInterface",
-              "ec2:DeletePlacementGroup",
-              "ec2:DeleteRoute",
-              "ec2:DeleteRouteTable",
-              "ec2:DeleteSecurityGroup",
-              "ec2:DeleteSubnet",
-              "ec2:DeleteTags",
-              "ec2:DeleteVolume",
-              "ec2:DeleteVpc",
-              "ec2:DeleteVpcPeeringConnection",
-              "ec2:DescribeAvailabilityZones",
-              "ec2:DescribeClassicLinkInstances",
-              "ec2:DescribeImages",
-              "ec2:DescribeInstanceAttribute",
-              "ec2:DescribeInstanceStatus",
-              "ec2:DescribeInstances",
-              "ec2:DescribeInternetGateways",
-              "ec2:DescribeKeyPairs",
-              "ec2:DescribeNetworkAcls",
-              "ec2:DescribeNetworkInterfaceAttribute",
-              "ec2:DescribeNetworkInterfaces",
-              "ec2:DescribePlacementGroups",
-              "ec2:DescribeRegions",
-              "ec2:DescribeReservedInstances",
-              "ec2:DescribeReservedInstancesListings",
-              "ec2:DescribeReservedInstancesModifications",
-              "ec2:DescribeReservedInstancesOfferings",
-              "ec2:DescribeRouteTables",
-              "ec2:DescribeSecurityGroups",
-              "ec2:DescribeSpotPriceHistory",
-              "ec2:DescribeSubnets",
-              "ec2:DescribeTags",
-              "ec2:DescribeVolumeAttribute",
-              "ec2:DescribeVolumeStatus",
-              "ec2:DescribeVolumes",
-              "ec2:DescribeVpcAttribute",
-              "ec2:DescribeVpcClassicLink",
-              "ec2:DescribeVpcPeeringConnections",
-              "ec2:DescribeVpcs",
-              "ec2:DetachClassicLinkVpc",
-              "ec2:DetachInternetGateway",
-              "ec2:DetachNetworkInterface",
-              "ec2:DetachVolume",
-              "ec2:DisassociateRouteTable",
-              "ec2:EnableVolumeIO",
-              "ec2:EnableVpcClassicLink",
-              "ec2:ModifyImageAttribute",
-              "ec2:ModifyInstanceAttribute",
-              "ec2:ModifyNetworkInterfaceAttribute",
-              "ec2:ModifySubnetAttribute",
-              "ec2:ModifyVolumeAttribute",
-              "ec2:ModifyVpcAttribute",
-              "ec2:RebootInstances",
-              "ec2:RejectVpcPeeringConnection",
-              "ec2:ReplaceNetworkAclAssociation",
-              "ec2:ReplaceNetworkAclEntry",
-              "ec2:ReplaceRoute",
-              "ec2:ReplaceRouteTableAssociation",
-              "ec2:ReportInstanceStatus",
-              "ec2:RequestSpotInstances",
-              "ec2:ResetImageAttribute",
-              "ec2:ResetInstanceAttribute",
-              "ec2:ResetNetworkInterfaceAttribute",
-              "ec2:RevokeSecurityGroupEgress",
-              "ec2:RevokeSecurityGroupIngress",
-              "ec2:RunInstances",
-              "ec2:StartInstances",
-              "ec2:StopInstances",
-              "ec2:TerminateInstances",
-              "ec2:RevokeSecurityGroupEgress",
-              "ec2:RevokeSecurityGroupIngress",
-              "ec2:CancelSpotFleetRequests",
-              "ec2:CancelSpotInstanceRequests",
-              "ec2:DescribeSpotFleetInstances",
-              "ec2:DescribeSpotFleetRequestHistory",
-              "ec2:DescribeSpotFleetRequests",
-              "ec2:DescribeSpotInstanceRequests",
-              "ec2:DescribeSpotPriceHistory",
-              "ec2:ModifySpotFleetRequest",
-              "ec2:RequestSpotFleet",
-              "ec2:CreateVpcEndpoint",
-              "ec2:DeleteVpcEndpoints",
-              "ec2:DescribePrefixLists",
-              "ec2:DescribeVpcEndpointServices",
-              "ec2:DescribeVpcEndpoints"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }, {
-            "Sid": "Stmt1442276374455",
-            "Action": [
-              "elasticfilesystem:CreateFileSystem",
-              "elasticfilesystem:CreateTags",
-              "elasticfilesystem:DescribeTags",
-              "elasticfilesystem:DeleteTags",
-              "elasticfilesystem:CreateMountTarget",
-              "elasticfilesystem:ModifyMountTargetSecurityGroups",
-              "elasticfilesystem:DescribeMountTargetSecurityGroups",
-              "elasticfilesystem:DescribeFileSystems",
-              "elasticfilesystem:DescribeMountTargets",
-              "elasticfilesystem:DeleteMountTarget",
-              "elasticfilesystem:DeleteFileSystem"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }, {
-            "Sid": "Stmt1442276489115",
-            "Action": [
-              "s3:CreateBucket"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }, {
-            "Sid": "Stmt1442276489116",
-            "Action": [
-              "s3:DeleteBucket",
-              "s3:GetBucketAcl",
-              "s3:PutObjectAcl",
-              "s3:PutBucketAcl",
-              "s3:PutBucketPolicy",
-              "s3:ListBucket"
-            ],
-            "Effect": "Allow",
-            "Resource": "arn:aws:s3:::cc*"
-          }, {
-            "Sid": "Stmt1442276544404",
-            "Action": [
-              "autoscaling:AttachInstances",
-              "autoscaling:CreateAutoScalingGroup",
-              "autoscaling:CreateLaunchConfiguration",
-              "autoscaling:CreateOrUpdateTags",
-              "autoscaling:DeleteAutoScalingGroup",
-              "autoscaling:DeleteLaunchConfiguration",
-              "autoscaling:DeletePolicy",
-              "autoscaling:DeleteTags",
-              "autoscaling:DescribeAccountLimits",
-              "autoscaling:DescribeAutoScalingGroups",
-              "autoscaling:DescribeAutoScalingInstances",
-              "autoscaling:DescribeLaunchConfigurations",
-              "autoscaling:DescribePolicies",
-              "autoscaling:DescribeTags",
-              "autoscaling:DetachInstances",
-              "autoscaling:ResumeProcesses",
-              "autoscaling:SetDesiredCapacity",
-              "autoscaling:SuspendProcesses",
-              "autoscaling:TerminateInstanceInAutoScalingGroup",
-              "autoscaling:UpdateAutoScalingGroup"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-          }]
+          "Statement": [
+            {
+              "Sid": "Stmt1442276049188",
+              "Action": [
+                "iam:AddRoleToInstanceProfile",
+                "iam:AttachRolePolicy",
+                "iam:CreateInstanceProfile",
+                "iam:CreatePolicy",
+                "iam:CreateRole",
+                "iam:DeleteInstanceProfile",
+                "iam:DeletePolicy",
+                "iam:DeleteRole",
+                "iam:DeleteRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:GetInstanceProfile",
+                "iam:GetPolicy",
+                "iam:GetRole",
+                "iam:GetRolePolicy",
+                "iam:GetSSHPublicKey",
+                "iam:ListAttachedGroupPolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListInstanceProfiles",
+                "iam:ListInstanceProfilesForRole",
+                "iam:ListRolePolicies",
+                "iam:ListPolicies",
+                "iam:ListRoles",
+                "iam:PassRole",
+                "iam:PutRolePolicy",
+                "iam:RemoveRoleFromInstanceProfile"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Stmt1442276116074",
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteItem",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:GetItem",
+                "dynamodb:ListTables",
+                "dynamodb:PutItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:UpdateItem",
+                "dynamodb:UpdateTable"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Stmt1442276285214",
+              "Action": [
+                "ec2:AcceptVpcPeeringConnection",
+                "ec2:AllocateAddress",
+                "ec2:AssociateRouteTable",
+                "ec2:AttachClassicLinkVpc",
+                "ec2:AttachInternetGateway",
+                "ec2:AttachNetworkInterface",
+                "ec2:AttachVolume",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateInternetGateway",
+                "ec2:CreateNatGateway",
+                "ec2:CreateNetworkAcl",
+                "ec2:CreateNetworkAclEntry",
+                "ec2:CreateNetworkInterface",
+                "ec2:CreatePlacementGroup",
+                "ec2:CreateRoute",
+                "ec2:CreateRouteTable",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateSubnet",
+                "ec2:CreateTags",
+                "ec2:CreateVolume",
+                "ec2:CreateVpc",
+                "ec2:CreateVpcPeeringConnection",
+                "ec2:DeleteInternetGateway",
+                "ec2:DeleteNatGateway",
+                "ec2:DeleteNetworkAcl",
+                "ec2:DeleteNetworkAclEntry",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DeletePlacementGroup",
+                "ec2:DeleteRoute",
+                "ec2:DeleteRouteTable",
+                "ec2:DeleteSecurityGroup",
+                "ec2:DeleteSubnet",
+                "ec2:DeleteTags",
+                "ec2:DeleteVolume",
+                "ec2:DeleteVpc",
+                "ec2:DeleteVpcPeeringConnection",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeClassicLinkInstances",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstanceAttribute",
+                "ec2:DescribeInstanceStatus",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeKeyPairs",
+                "ec2:DescribeNetworkAcls",
+                "ec2:DescribeNetworkInterfaceAttribute",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribePlacementGroups",
+                "ec2:DescribeRegions",
+                "ec2:DescribeReservedInstances",
+                "ec2:DescribeReservedInstancesListings",
+                "ec2:DescribeReservedInstancesModifications",
+                "ec2:DescribeReservedInstancesOfferings",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeTags",
+                "ec2:DescribeVolumeAttribute",
+                "ec2:DescribeVolumeStatus",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeVpcAttribute",
+                "ec2:DescribeVpcClassicLink",
+                "ec2:DescribeVpcPeeringConnections",
+                "ec2:DescribeVpcs",
+                "ec2:DetachClassicLinkVpc",
+                "ec2:DetachInternetGateway",
+                "ec2:DetachNetworkInterface",
+                "ec2:DetachVolume",
+                "ec2:DisassociateRouteTable",
+                "ec2:EnableVolumeIO",
+                "ec2:EnableVpcClassicLink",
+                "ec2:ModifyImageAttribute",
+                "ec2:ModifyInstanceAttribute",
+                "ec2:ModifyNetworkInterfaceAttribute",
+                "ec2:ModifySubnetAttribute",
+                "ec2:ModifyVolumeAttribute",
+                "ec2:ModifyVpcAttribute",
+                "ec2:RebootInstances",
+                "ec2:RejectVpcPeeringConnection",
+                "ec2:ReleaseAddress",
+                "ec2:ReplaceNetworkAclAssociation",
+                "ec2:ReplaceNetworkAclEntry",
+                "ec2:ReplaceRoute",
+                "ec2:ReplaceRouteTableAssociation",
+                "ec2:ReportInstanceStatus",
+                "ec2:RequestSpotInstances",
+                "ec2:ResetImageAttribute",
+                "ec2:ResetInstanceAttribute",
+                "ec2:ResetNetworkInterfaceAttribute",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:RunInstances",
+                "ec2:StartInstances",
+                "ec2:StopInstances",
+                "ec2:TerminateInstances",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:CancelSpotFleetRequests",
+                "ec2:CancelSpotInstanceRequests",
+                "ec2:DescribeSpotFleetInstances",
+                "ec2:DescribeSpotFleetRequestHistory",
+                "ec2:DescribeSpotFleetRequests",
+                "ec2:DescribeSpotInstanceRequests",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:ModifySpotFleetRequest",
+                "ec2:RequestSpotFleet",
+                "ec2:CreateVpcEndpoint",
+                "ec2:DeleteVpcEndpoints",
+                "ec2:DescribePrefixLists",
+                "ec2:DescribeVpcEndpointServices",
+                "ec2:DescribeVpcEndpoints"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Stmt1442276374455",
+              "Action": [
+                "elasticfilesystem:CreateFileSystem",
+                "elasticfilesystem:CreateTags",
+                "elasticfilesystem:DescribeTags",
+                "elasticfilesystem:DeleteTags",
+                "elasticfilesystem:CreateMountTarget",
+                "elasticfilesystem:ModifyMountTargetSecurityGroups",
+                "elasticfilesystem:DescribeMountTargetSecurityGroups",
+                "elasticfilesystem:DescribeFileSystems",
+                "elasticfilesystem:DescribeMountTargets",
+                "elasticfilesystem:DeleteMountTarget",
+                "elasticfilesystem:DeleteFileSystem"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Stmt1442276489115",
+              "Action": [
+                "s3:CreateBucket"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            },
+            {
+              "Sid": "Stmt1442276489116",
+              "Action": [
+                "s3:DeleteBucket",
+                "s3:GetBucketAcl",
+                "s3:PutObjectAcl",
+                "s3:PutBucketAcl",
+                "s3:PutBucketPolicy",
+                "s3:ListBucket"
+              ],
+              "Effect": "Allow",
+              "Resource": "arn:aws:s3:::cc*"
+            },
+            {
+              "Sid": "Stmt1442276544404",
+              "Action": [
+                "autoscaling:AttachInstances",
+                "autoscaling:CreateAutoScalingGroup",
+                "autoscaling:CreateLaunchConfiguration",
+                "autoscaling:CreateOrUpdateTags",
+                "autoscaling:DeleteAutoScalingGroup",
+                "autoscaling:DeleteLaunchConfiguration",
+                "autoscaling:DeletePolicy",
+                "autoscaling:DeleteTags",
+                "autoscaling:DescribeAccountLimits",
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeAutoScalingInstances",
+                "autoscaling:DescribeLaunchConfigurations",
+                "autoscaling:DescribePolicies",
+                "autoscaling:DescribeTags",
+                "autoscaling:DetachInstances",
+                "autoscaling:ResumeProcesses",
+                "autoscaling:SetDesiredCapacity",
+                "autoscaling:SuspendProcesses",
+                "autoscaling:TerminateInstanceInAutoScalingGroup",
+                "autoscaling:UpdateAutoScalingGroup"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
         },
-        "Roles": [{
-          "Ref": "CloudyClusterControlInstanceRole"
-        }]
+        "Roles": [
+          {
+            "Ref": "CloudyClusterControlInstanceRole"
+          }
+        ]
       }
     },
     "CloudyClusterControlInstanceProfile": {
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "Path": "/",
-        "Roles": [{
-          "Ref": "CloudyClusterControlInstanceRole"
-        }]
+        "Roles": [
+          {
+            "Ref": "CloudyClusterControlInstanceRole"
+          }
+        ]
       }
     },
-
     "CloudyClusterControlNodeSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -706,62 +715,85 @@
         "VpcId": {
           "Ref": "vpc"
         },
-        "SecurityGroupIngress": [{
-          "IpProtocol": "tcp",
-          "FromPort": "80",
-          "ToPort": "80",
-          "CidrIp": {"Ref": "NetworkCIDR"}
-        }, {
-          "IpProtocol": "tcp",
-          "FromPort": "443",
-          "ToPort": "443",
-          "CidrIp": {"Ref": "NetworkCIDR"}
-        }, {
-          "IpProtocol": "tcp",
-          "FromPort": "22",
-          "ToPort": "22",
-          "CidrIp": {"Ref": "NetworkCIDR"}
-        }],
-        "SecurityGroupEgress": [{
-          "IpProtocol": "-1",
-          "FromPort": "0",
-          "ToPort": "65535",
-          "CidrIp": "0.0.0.0/0"
-        }]
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": {
+              "Ref": "NetworkCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": {
+              "Ref": "NetworkCIDR"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "NetworkCIDR"
+            }
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
       }
     },
-
     "CloudyClusterControlNode": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-	  	 "Tags" : [ {
-			"Key" : "Name",
-			"Value" : "CloudyCluster Control Instance"
-		} ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "CloudyCluster Control Instance"
+          }
+        ],
         "KeyName": {
           "Ref": "KeyName"
         },
         "ImageId": {
-          "Fn::FindInMap": ["AWSRegionArch2AMI", {
-            "Ref": "AWS::Region"
-          }, {
-            "Fn::FindInMap": ["AWSInstanceType2Arch", {
-                "Ref": "InstanceType"
-              },
-              "Arch"
-            ]
-          }]
+          "Fn::FindInMap": [
+            "AWSRegionArch2AMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Fn::FindInMap": [
+                "AWSInstanceType2Arch",
+                {
+                  "Ref": "InstanceType"
+                },
+                "Arch"
+              ]
+            }
+          ]
         },
-        "NetworkInterfaces": [{
-          "AssociatePublicIpAddress": "true",
-          "DeviceIndex": "0",
-          "GroupSet": [{
-            "Ref": "CloudyClusterControlNodeSecurityGroup"
-          }],
-          "SubnetId": {
-            "Ref": "PublicSubnet"
+        "NetworkInterfaces": [
+          {
+            "AssociatePublicIpAddress": "true",
+            "DeviceIndex": "0",
+            "GroupSet": [
+              {
+                "Ref": "CloudyClusterControlNodeSecurityGroup"
+              }
+            ],
+            "SubnetId": {
+              "Ref": "PublicSubnet"
+            }
           }
-        }],
+        ],
         "InstanceType": {
           "Ref": "InstanceType"
         },
@@ -771,14 +803,21 @@
       }
     }
   },
-  "Outputs" : {
-  "InstanceID" : {
-    "Description" : "The ID of the new CloudyCluster Control Instance:",
-    "Value" : { "Ref" : "CloudyClusterControlNode" }
-  },
-  "InstanceIP" : {
-    "Description": "The IP Address of the new CloudyCluster Control Instance:",
-    "Value" : { "Fn::GetAtt" : [ "CloudyClusterControlNode", "PublicIp" ]}
+  "Outputs": {
+    "InstanceID": {
+      "Description": "The ID of the new CloudyCluster Control Instance:",
+      "Value": {
+        "Ref": "CloudyClusterControlNode"
+      }
+    },
+    "InstanceIP": {
+      "Description": "The IP Address of the new CloudyCluster Control Instance:",
+      "Value": {
+        "Fn::GetAtt": [
+          "CloudyClusterControlNode",
+          "PublicIp"
+        ]
+      }
+    }
   }
- }
 }
