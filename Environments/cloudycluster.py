@@ -649,7 +649,6 @@ class CloudyCluster(Environment):
                     timeElapsed += timeToWait
 
     def monitorEnvironmentCreation(self):
-        clusterError = None
         url = 'https://' + str(self.dnsName) + '/srv/getSpinningCluster'
         maxTimeToWait = 2400 # 20 minutes=1200, 40 minutes=2400, 60 minutes=3600
         timeElapsed = 0
@@ -664,8 +663,9 @@ class CloudyCluster(Environment):
                     return {"status": "success", "payload": "The Environment has been created successfully."}
                 else:
                     if str(clusterInfo['clusterError']) != "none":
+                        print("Error encountered during cluster creation: ", clusterInfo['clusterError'])
                         # Environment encountered an error and failed
-                        return {"status": "error", "payload": {"error": "There was an error encountered during the creation of the new Environment.\n" + str(clusterError), "traceback": ''.join(traceback.format_stack())}}
+                        return {"status": "error", "payload": {"error": "There was an error encountered during the creation of the new Environment.\n" + str(clusterInfo["clusterError"]), "traceback": ''.join(traceback.format_stack())}}
             except Exception as e:
                 print("Checking status error:")
                 print(''.join(traceback.format_exc()))

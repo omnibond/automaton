@@ -127,7 +127,7 @@ class MPIJob(Job):
                 f.write("#CC -gcpup\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
-module add openmpi/3.0.0
+module add openmpi/4.1.2
 cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
@@ -190,7 +190,7 @@ class GPUJob(Job):
 #CC -gcpgpusp 1:nvidia-tesla-p100
 #CC -gcpit n1-standard-1"""
         elif cloudType == "aws":
-            ccq = "#CC -it g3.4xlarge"
+            ccq = "#CC -it g4dn.4xlarge"
         f.write(f"""#!/bin/sh
 {sched}
 {ccq}
@@ -247,8 +247,60 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
                 logger.error(f"Error: the file for {self.name} had an unexpected value. Please check {error} for more information.")
 
 class ClusterCheckerJob(Job):
+    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False, count=1):
+        self.nodes = nodes
+        self.processes = processes
+        self.instance_type = instance_type
+        self.preemptible = preemptible
+        self.expected_fail = expected_fail
+        self.count = count
+
+        super().__init__(name, output_dir, monitor=False)
+
     def job_text(self, f, cloudtype, scheduler):
-        pass
+        if cloudtype == "aws":
+            ccq = "#CC -it m5.8xlarge"
+        else:
+            ccq = "#CC -gcpit c2-standard-30"
+        if scheduler == "Slurm":
+            sched_type = f"""#SBATCH -N {self.nodes}
+#SBATCH --ntasks-per-node={self.processes}"""
+            t_type = ""
+        elif scheduler == "Torque":
+            sched_type = f"""#PBS -l nodes={self.nodes}:ppn={self.processes}
+export TMPDIR=/tmp"""
+            t_type = "-f$PBS_NODEFILE"
+        f.write(f"""#!/bin/sh
+{ccq}
+{sched_type}
+export PATH=/opt/intel/intelpython3/bin:$PATH
+source /opt/intel/clck/2019.10/bin/clckvars.sh
+source /opt/intel/psxe_runtime/linux/bin/psxevars.sh
+cd /mnt/orangefs
+clck -F intel_hpc_platform_compat-hpc-2018.0 {t_type}
+""")
+
+    def output(self, output, error):
+        if error == None or output == None:
+            logger.error(f"Error: {self.name} does not have the required files for checking output")
+            self.success = False
+        else:
+            f = open(output, "r")
+            string = f.read()
+            if "Overall Result: 1 issue found - FUNCTIONALITY (1)" in string and "80 GB storage or greater is required on the compute node." in string:
+                logger.info(f"The job {self.name} was a success")
+            else:
+                logger.error(f"There was an error in the {output} file. Please check the file for more information")
+
+            f = open(error, "r")
+            string = f.read()
+            if string == "\n":
+                logger.info(f"There were no errors found in the {error} file")
+            else:
+                logger.error(f"There was an error in the {error} file")
+                self.success = False
+            f.close()
+    
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -571,7 +623,6 @@ vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
 scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': 't2.small', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
 filesystem1: {{"numberOfInstances": 4, "instanceType": "t2.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-efs1: {{"type": "common"}}
 login1: {{'name': 'Login', 'instanceType': 't2.small', "fsChoice": "OrangeFS"}}
 nat1: {{'instanceType': 't2.micro', 'accessFrom': '0.0.0.0/0'}}
 """)
@@ -746,4 +797,3 @@ Full output is available at {output_url}{output_part2}.
 
 if __name__ == "__main__":
     main()
-
