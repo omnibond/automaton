@@ -125,6 +125,9 @@ class MPIJob(Job):
                 f.write(f"#CC -gcpit {self.instance_type}\n")
             if self.preemptible:
                 f.write("#CC -gcpup\n")
+        elif cloudType == "aws":
+            if self.instance_type:
+                f.write(f"#CC -it c6gn.16xlarge\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/4.1.2
@@ -174,20 +177,26 @@ cd $SHARED_FS_NAME/samplejobs/mpi
 
         if error_flag or (unexpected_output and not self.expected_fail):
             self.success = False
-            logger.error("There was a problem with the job. Please check the output files")
+            logger.error(f"There was a problem with the job. Please check the {output} file for more information.")
 
     def parameters(self):
         return ("%2d, %2d" % (self.nodes, self.processes))
 
 class GPUJob(Job):
+    def __init__(self, name, output_dir, instance_type=None):
+        self.name = name
+        self.instance_type = instance_type
+
+        super().__init__(name, output_dir, monitor=False)
+
     def job_text(self, f, cloudType, scheduler):
         if scheduler == "Slurm":
             sched = "#SBATCH -N 1"
         elif scheduler == "Torque":
             sched = "#PBS -l nodes=1"
         if cloudType == "gcp":
-            ccq = """#CC -gcpgpu
-#CC -gcpgpusp 1:nvidia-tesla-p100
+            ccq = f"""#CC -gcpgpu
+#CC -gcpgpusp 1:{self.instance_type}
 #CC -gcpit n1-standard-1"""
         elif cloudType == "aws":
             ccq = "#CC -it g4dn.4xlarge"
@@ -199,13 +208,13 @@ class GPUJob(Job):
 
     def output(self, output, error):
         if error == None or output == None:
-            logger.error("Error: %s does not have the required files for checking output" % self.name)
+            logger.error(f"Error: {self.name} does not have the required files for checking output")
             self.success = False
         else:
             f = open(output, "r")
             string = f.read()
             if "NVIDIA-SMI successful" in string:
-                logger.info("The job %s was a success" % self.name)
+                logger.info(f"The job {self.name} was a success")
             else:
                 logger.error(f"There was a problem with the job. Please check the file {output}")
                 self.success = False
@@ -227,24 +236,25 @@ dd if=/mnt/orangefs/test of=/dev/null bs=1048576
 
     def output(self, output, error):
         if error == None or output == None:
-            logger.error("Error: %s does not have the required files for checking output" % self.name)
+            logger.error(f"Error: {self.name} does not have the required files for checking output")
             self.success = False
         else:
             f = open(error, "r")
             string = f.read()
-            f.close
+            f.close()
             i = 0
             s = []
             for thing in string.split(" "):
                 s.append(thing)
                 i += 1
-            r = r"^1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, [0-9]+ MB/s\n1024+0 records in\n1024+0 records out\n1073741824 bytes (1.1 GB) copied, ([0-9]+(|\.[0-9]+)) s, ([0-9]+(|\.[0-9]+)) MB/s$"
+            r = r"^1024\+0 records in\n1024\+0 records out\n1073741824 bytes \(1\.1 GB\) copied, ([0-9]+(|\.[0-9]+)) s, [0-9]+ MB/s\n1024\+0 records in\n1024\+0 records out\n1073741824 bytes \(1\.1 GB\) copied, ([0-9]+(|\.[0-9]+)) s, ([0-9]+(|\.[0-9]+)) MB/s\n$"
             m = re.search(r, string)
             if m:
-                logger.info("The job %s was a success" % self.name)
+                logger.info(f"The job {self.name} was a success")
                 logger.info(f"It took {s[9]} s at {s[11]} MB/s to read.\nIt took {s[21]} s at {s[23]} MB/s to write.")
             else:
                 logger.error(f"Error: the file for {self.name} had an unexpected value. Please check {error} for more information.")
+                self.success = False
 
 class ClusterCheckerJob(Job):
     def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False, count=1):
@@ -300,7 +310,78 @@ clck -F intel_hpc_platform_compat-hpc-2018.0 {t_type}
                 logger.error(f"There was an error in the {error} file")
                 self.success = False
             f.close()
-    
+
+class Tier1NetworkingJob(Job):
+    def __init__(self, name, output_dir, nodes, instance_type=None, preemptible=False, expected_fail=False, count=1):
+        self.nodes = nodes
+        self.instance_type = instance_type
+        self.preemptible = preemptible
+        self.expected_fail = expected_fail
+        self.count = count
+
+        super().__init__(name, output_dir, monitor=False)
+
+    def job_text(self, f, cloudtype, scheduler):
+        if cloudtype == "gcp":
+            f.write(f"""#!/bin/sh
+#CC -gcpit {self.instance_type}
+#CC -gcput1
+#SBATCH -N {self.nodes}
+# print since instance re-use may affect this
+if gcloud compute instances describe $(curl -s -H Metadata-Flavor:Google http://169.254.169.254/computeMetadata/v1/instance/name) --zone $(curl -s -H Metadata-Flavor:Google http://169.254.169.254/computeMetadata/v1/instance/zone) | grep TIER_1 > /dev/null
+then
+        echo using tier 1
+else
+        echo not using tier 1
+fi
+
+me=$(hostname)
+other=$(scontrol show hostnames | grep -v $me)
+iperf -s > $SLURM_JOB_NAME.server.out 2>&1 &
+ssh $other iperf -t 30 -c $me -P 16 > $SLURM_JOB_NAME.client.out 2>&1
+kill %1
+grep SUM $SLURM_JOB_NAME.server.out
+""")
+
+        else:
+            f.write(F"""#!/bin/sh
+#CC -it {self.instance_type}
+#SBATCH -N {self.nodes}
+me=$(hostname)
+other=$(scontrol show hostnames | grep -v $me)
+iperf -s > $SLURM_JOB_NAME.server.out 2>&1 &
+ssh $other iperf -t 30 -c $me -P 16 > $SLURM_JOB_NAME.client.out 2>&1
+kill %1
+grep SUM $SLURM_JOB_NAME.server.out
+""")
+
+    def output(self, output, error):
+        if error == None or output == None:
+            logger.error(f"Error: {self.name} does not have the required files for checking output")
+            self.success = False
+        else:
+            f = open(output, "r")
+            string = f.read()
+            r = r"([0-9.]+) Gbits/sec"
+            m = re.search(r, string)
+            if not m:
+                logger.error(f"Error: could not find iperf output")
+                self.success = False
+            i = m.group(1)
+            if "not using tier 1" in string or float(i) < 40:
+                logger.error(f"There was an error in the {output} file. Please check the file for more information")
+                self.success = False
+            else:
+                logger.info(f"The job {self.name} was a success")
+
+            f = open(error, "r")
+            lines = list(f)
+            if len(lines) != 0:
+                logger.error(f"There was an error in the {error} file")
+                self.success = False
+            else:
+                logger.info(f"There were no errors found in the {error} file")
+            f.close()
 
 def run(args, timeout=0, die=True, output=None):
     must_close = False
@@ -409,6 +490,7 @@ def main():
         project_name = cp.get("tester", "project_name")
         service_account = cp.get("tester", "service_account")
         confFile = "gcp_tester.conf"
+        gcp_env_type = cp.get("tester", "gcp_env_type")
     else:
         confFile = "aws_tester.conf"
         KeyName = cp.get("tester", "KeyName")
@@ -657,7 +739,7 @@ smtp:
 
 [CloudyClusterGcp]
 keyName: {username}
-instanceType: g1-small
+instanceType: {gcp_env_type}
 networkCidr: 0.0.0.0/0
 region: {region}
 zone: {az}
@@ -683,13 +765,13 @@ az: {az}
 {job_config}
 
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single g1-small CCQ enabled {scheduler} Scheduler, a g1-small Login instance, a 100GB OrangeFS Filesystem, and a g1-small NAT instance.
+description: Creates a CloudyCluster Environment that contains a single {gcp_env_type} CCQ enabled {scheduler} Scheduler, a {gcp_env_type} Login instance, a 100GB OrangeFS Filesystem, and a {gcp_env_type} NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': 'g1-small', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "g1-small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-login1: {{'name': 'login', 'instanceType': 'g1-small', 'fsChoice': 'OrangeFS'}}
-nat1: {{'instanceType': 'g1-small', 'accessFrom': '0.0.0.0/0'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{gcp_env_type}', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "{gcp_env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+login1: {{'name': 'login', 'instanceType': '{gcp_env_type}', 'fsChoice': 'OrangeFS'}}
+nat1: {{'instanceType': '{gcp_env_type}', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 
