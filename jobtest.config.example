@@ -5,15 +5,28 @@
 job_type = MPIPreliminaryJob
 
 [YOUR_JOB_NAME]
-job_type = MPIJob
+job_type = MPIJob/ClusterCheckerJob
 nodes = number of nodes
 processes = number of processes
-;below are optional
+;below are optional for MPIJob
 instance_type = "SPECIFIED_INSTANCE_TYPE"
 ;example: "c2-standard-4"
 ;preemptible is always set to False
 preemptible = True
 
-;for gpu or orangefs jobs only instance_type is required
+;for gpu jobs
 [YOUR_JOB_NAME]
-job_type = GPUJob/OrangeFSJob
+job_type = GPUJob
+instance_type = "SPECIFIED_INSTANCE_TYPE"
+;example: "nvidia-tesla-p100"
+
+[YOUR_JOB_NAME]
+job_type = Tier1NetworkingJob
+nodes = number of nodes
+instance_type = "SPECIFIED_INSTANCE_TYPE"
+;example for gcp: "n2-standard-32"
+;example for aws: "c5n.18xlarge"
+
+;for orangefs jobs only instance_type is required
+[YOUR_JOB_NAME]
+job_type = OrangeFSJob

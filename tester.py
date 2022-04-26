@@ -127,7 +127,7 @@ class MPIJob(Job):
                 f.write("#CC -gcpup\n")
         elif cloudType == "aws":
             if self.instance_type:
-                f.write(f"#CC -it c6gn.16xlarge\n")
+                f.write(f"#CC -it c5n.16xlarge\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/4.1.2
@@ -347,7 +347,7 @@ grep SUM $SLURM_JOB_NAME.server.out
             f.write(F"""#!/bin/sh
 #CC -it {self.instance_type}
 #SBATCH -N {self.nodes}
-me=$(hostname)
+me=$(hostname -s)
 other=$(scontrol show hostnames | grep -v $me)
 iperf -s > $SLURM_JOB_NAME.server.out 2>&1 &
 ssh $other iperf -t 30 -c $me -P 16 > $SLURM_JOB_NAME.client.out 2>&1
@@ -479,6 +479,7 @@ def main():
         region = cp.get("tester", "region")
         az = cp.get("tester", "az")
         scheduler = cp.get("tester", "scheduler")
+        env_type = cp.get("tester", "env_type")
     except configparser.NoSectionError:
         logger.critical("missing configuration section")
         sys.exit(1)
@@ -676,7 +677,7 @@ cloudType: aws
 # Specifies which AWS credentials profile to use from the ~/.aws/credentials file
 #profile: myprofile
 keyName: {KeyName}
-instanceType: t2.small
+instanceType: {env_type}
 networkCidr: 0.0.0.0/0
 vpc: {vpc_id}
 publicSubnet: {subnet_id}
@@ -700,13 +701,13 @@ az: {az}
 
 # Template definitions
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single t2.small CCQ enabled {scheduler} Scheduler, a t2.small Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a t2.micro NAT instance.
+description: Creates a CloudyCluster Environment that contains a single {env_type} CCQ enabled {scheduler} Scheduler, a {env_type} Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a {env_type} NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': 't2.small', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "t2.small", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-login1: {{'name': 'Login', 'instanceType': 't2.small', "fsChoice": "OrangeFS"}}
-nat1: {{'instanceType': 't2.micro', 'accessFrom': '0.0.0.0/0'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_type}', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+login1: {{'name': 'Login', 'instanceType': '{env_type}', "fsChoice": "OrangeFS"}}
+nat1: {{'instanceType': '{env_type}', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 
@@ -739,7 +740,7 @@ smtp:
 
 [CloudyClusterGcp]
 keyName: {username}
-instanceType: {gcp_env_type}
+instanceType: {env_type}
 networkCidr: 0.0.0.0/0
 region: {region}
 zone: {az}
@@ -765,13 +766,13 @@ az: {az}
 {job_config}
 
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single {gcp_env_type} CCQ enabled {scheduler} Scheduler, a {gcp_env_type} Login instance, a 100GB OrangeFS Filesystem, and a {gcp_env_type} NAT instance.
+description: Creates a CloudyCluster Environment that contains a single {env_type} CCQ enabled {scheduler} Scheduler, a {env_type} Login instance, a 100GB OrangeFS Filesystem, and a {env_type} NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{gcp_env_type}', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "{gcp_env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-login1: {{'name': 'login', 'instanceType': '{gcp_env_type}', 'fsChoice': 'OrangeFS'}}
-nat1: {{'instanceType': '{gcp_env_type}', 'accessFrom': '0.0.0.0/0'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_type}', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+login1: {{'name': 'login', 'instanceType': '{env_type}', 'fsChoice': 'OrangeFS'}}
+nat1: {{'instanceType': '{env_type}', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 
