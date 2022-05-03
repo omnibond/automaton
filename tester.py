@@ -1,5 +1,6 @@
 import configparser
 import email.utils
+import json
 import logging
 import os
 import re
@@ -11,7 +12,7 @@ import sys
 import tempfile
 import termios
 import time
-import json
+from urllib.request import Request, urlopen
 
 import googleapiclient.discovery
 
@@ -451,6 +452,27 @@ def run(args, timeout=0, die=True, output=None):
         output.close()
     return buffer, fail
 
+def make_cft(url, image, output):
+    name = os.path.basename(url)
+
+    try:
+        f = open(name)
+    except FileNotFoundError:
+        f = open(name, "w+b")
+        request = Request(url)
+        f.write(urlopen(request).read())
+        f.seek(0)
+
+    template = json.load(f)
+    f.close()
+
+    template["Parameters"]["ImageId"] = {"Type": "String", "Default": image}
+    template["Resources"]["CloudyClusterControlNode"]["Properties"]["ImageId"] = {"Ref": "ImageId"}
+
+    f = open(output, "w")
+    json.dump(template, f)
+    f.close()
+
 def main():
     if len(sys.argv) > 1:
         filename = sys.argv[1]
@@ -711,15 +733,7 @@ nat1: {{'instanceType': '{env_type}', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 
-        f = open("cloudyClusterCloudFormationTemplate.json", "r+")
-
-        file_contents = json.loads(f.read())
-        f.close()
-        file_contents["Mappings"]["AWSRegionArch2AMI"][region]["64"] = sourceimage
-
-        f = open("cloudyClusterCloudFormationTemplate.json", "w")
-        f.write(json.dumps(file_contents, indent=2))
-        f.close()
+        make_cft("https://s3.amazonaws.com/awsmp-fulfillment-cf-templates-prod/73bcd10f-81b6-4fbb-b113-6e5e72ec1f89/035d6c04554940329959a615ec29f848.template", sourceimage, "cloudyClusterCloudFormationTemplate.json")
 
     else:
         f = open(f"ConfigurationFiles/{confFile}", "w")
