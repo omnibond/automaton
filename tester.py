@@ -311,7 +311,7 @@ clck -F intel_hpc_platform_compat-hpc-2018.0 {t_type}
                 self.success = False
             f.close()
 
-class Tier1NetworkingJob(Job):
+class iperfNetworkingJob(Job):
     def __init__(self, name, output_dir, nodes, instance_type=None, preemptible=False, expected_fail=False, count=1):
         self.nodes = nodes
         self.instance_type = instance_type
@@ -338,7 +338,7 @@ fi
 me=$(hostname)
 other=$(scontrol show hostnames | grep -v $me)
 iperf -s > $SLURM_JOB_NAME.server.out 2>&1 &
-ssh $other iperf -t 30 -c $me -P 16 > $SLURM_JOB_NAME.client.out 2>&1
+ssh $other iperf -t 60 -c $me -P 40 > $SLURM_JOB_NAME.client.out 2>&1
 kill %1
 grep SUM $SLURM_JOB_NAME.server.out
 """)
@@ -350,7 +350,7 @@ grep SUM $SLURM_JOB_NAME.server.out
 me=$(hostname -s)
 other=$(scontrol show hostnames | grep -v $me)
 iperf -s > $SLURM_JOB_NAME.server.out 2>&1 &
-ssh $other iperf -t 30 -c $me -P 16 > $SLURM_JOB_NAME.client.out 2>&1
+ssh $other iperf -t 60 -c $me -P 40 > $SLURM_JOB_NAME.client.out 2>&1
 kill %1
 grep SUM $SLURM_JOB_NAME.server.out
 """)

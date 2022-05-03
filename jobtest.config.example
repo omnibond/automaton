@@ -21,7 +21,7 @@ instance_type = "SPECIFIED_INSTANCE_TYPE"
 ;example: "nvidia-tesla-p100"
 
 [YOUR_JOB_NAME]
-job_type = Tier1NetworkingJob
+job_type = iperf1NetworkingJob
 nodes = number of nodes
 instance_type = "SPECIFIED_INSTANCE_TYPE"
 ;example for gcp: "n2-standard-32"
