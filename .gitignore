@@ -4,3 +4,4 @@ infoFile
 jobtest.config
 paramiko.log
 tester.config
+gcp_tester.conf
