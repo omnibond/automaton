@@ -5,3 +5,4 @@ jobtest.config
 paramiko.log
 tester.config
 gcp_tester.conf
+/EnvironmentTemplates/CloudyCluster/tester_template.py
