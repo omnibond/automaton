@@ -466,6 +466,7 @@ def make_cft(url, image, output):
     template = json.load(f)
     f.close()
 
+    template["Outputs"]["InstanceID"] = {"Value": {"Ref": "CloudyClusterControlNode"}}
     template["Parameters"]["ImageId"] = {"Type": "String", "Default": image}
     template["Resources"]["CloudyClusterControlNode"]["Properties"]["ImageId"] = {"Ref": "ImageId"}
 
