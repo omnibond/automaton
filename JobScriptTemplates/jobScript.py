@@ -274,6 +274,8 @@ class JobScript(object):
         return {"status": "success", "payload": "Successfully checked the job script parameters."}
 
     def download(self, jobId, jobName):
+        timeElapsed = 0
+        timeout = 240
         # TODO Currently we don't support the PrivateKey or MFA for upload, we will need to do this later.
         # Create the sftp session for uploading via sftp
         values = self.createSftpSession()
@@ -283,20 +285,37 @@ class JobScript(object):
             sftpSession = values['payload']
             # Download Output's .e and .o files to current directory
             # Create a wait loop to check if the files are in the current directory
-            try:
-                remote = jobName + jobId + ".e"
-                local = self.options["directory"] + "/" + remote
-                sftpSession.get(remote, local)
-                print(f"Downloading {local} for job {jobName}")
+            while True:
+                try:
+                    remote = jobName + jobId + ".e"
+                    localErr = self.options["directory"] + "/" + remote
+                    sftpSession.get(remote, localErr)
+                    print(f"Downloading {localErr} for job {jobName}")
 
-                remote = jobName + jobId + ".o"
-                local = self.options["directory"] + "/" + remote
-                sftpSession.get(remote, local)
-                print(f"Downloading {local} for job {jobName}")
 
-                return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
-            except Exception:
-                return {"status": "error", "payload": {"error": "There was a problem trying to download the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
+                    remote = jobName + jobId + ".o"
+                    local = self.options["directory"] + "/" + remote
+                    sftpSession.get(remote, local)
+                    print(f"Downloading {local} for job {jobName}")
+
+                    try:
+                        f = sftpSession.open(localErr, "r")
+                        f.close()
+                        f = sftpSession.open(local, "r")
+                        f.close()
+
+                    except IOError:
+                        if timeElapsed < timeout:
+                            print(f"Waiting 20 seconds to get {jobName}'s output")
+                            timeElapsed += 20
+                            time.sleep(20)
+                        else:
+                            raise
+
+                    return {"status": "success", "payload": "The job script was successfully uploaded to the remote system."}
+
+                except Exception:
+                    return {"status": "error", "payload": {"error": "There was a problem trying to download the job script to the remote system.", "traceback": ''.join(traceback.format_exc())}}
 
 
     def processJobScript(self):

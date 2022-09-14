@@ -121,7 +121,7 @@ class AwsResources(Resource):
         counter = 0
         resourceStatus = None
         resourceType = None
-        maxTimeToWait = 600
+        maxTimeToWait = 1200
         timeElapsed = 0
         timeToWait = 60
         done = False

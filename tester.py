@@ -39,17 +39,12 @@ class Job:
     def job_text(self, f, cloudType, scheduler):
         raise Exception("job_text undefined")
 
-    def config(self, n, cloudType):
+    def config(self, n):
         if self.monitor:
             monitor = "true"
         else:
             monitor = "false"
-        if cloudType == "gcp":
-            return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}",
-            "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
-
-        if cloudType == "aws":
-            return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
+        return f"""jobScript{n}: {{"name": "{self.name}", "options": {{"uploadProtocol": "sftp", "monitorJob": "{monitor}", "timeout": 0, "uploadScript": "true", "localPath": "{self.job_path}", "remotePath": "/mnt/orangefs/{self.job_filename}", "directory": "{self.output_dir}", "executeDirectory": "/mnt/orangefs"}}}}"""
 
     def output(self, output, error):
         pass
@@ -128,7 +123,7 @@ class MPIJob(Job):
                 f.write("#CC -gcpup\n")
         elif cloudType == "aws":
             if self.instance_type:
-                f.write(f"#CC -it c5n.16xlarge\n")
+                f.write(f"#CC -it c5n.18xlarge\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add openmpi/4.1.2
@@ -136,8 +131,11 @@ cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
         for i in range(self.count):
-            f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+            f.write(f"""#srun $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """)
+            # f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+# """)
 
     def output(self, output, error):
         error_flag = False
@@ -312,7 +310,7 @@ clck -F intel_hpc_platform_compat-hpc-2018.0 {t_type}
                 self.success = False
             f.close()
 
-class iperfNetworkingJob(Job):
+class IperfNetworkingJob(Job):
     def __init__(self, name, output_dir, nodes, instance_type=None, preemptible=False, expected_fail=False, count=1):
         self.nodes = nodes
         self.instance_type = instance_type
@@ -502,7 +500,7 @@ def main():
         region = cp.get("tester", "region")
         az = cp.get("tester", "az")
         scheduler = cp.get("tester", "scheduler")
-        env_type = cp.get("tester", "env_type")
+        env_instance_type = cp.get("tester", "env_instance_type")
     except configparser.NoSectionError:
         logger.critical("missing configuration section")
         sys.exit(1)
@@ -514,7 +512,6 @@ def main():
         project_name = cp.get("tester", "project_name")
         service_account = cp.get("tester", "service_account")
         confFile = "gcp_tester.conf"
-        gcp_env_type = cp.get("tester", "gcp_env_type")
     else:
         confFile = "aws_tester.conf"
         KeyName = cp.get("tester", "KeyName")
@@ -680,7 +677,7 @@ def main():
     i = 0
     for job in jobs:
         job.save_job(cloudType, scheduler)
-        job_config = job_config + job.config(i, cloudType) + "\n"
+        job_config = job_config + job.config(i) + "\n"
         i = i + 1
 
     if cloudType == "aws":
@@ -700,7 +697,7 @@ cloudType: aws
 # Specifies which AWS credentials profile to use from the ~/.aws/credentials file
 #profile: myprofile
 keyName: {KeyName}
-instanceType: {env_type}
+instanceType: {env_instance_type}
 networkCidr: 0.0.0.0/0
 vpc: {vpc_id}
 publicSubnet: {subnet_id}
@@ -724,13 +721,14 @@ az: {az}
 
 # Template definitions
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single {env_type} CCQ enabled {scheduler} Scheduler, a {env_type} Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a {env_type} NAT instance.
+description: Creates a CloudyCluster Environment that contains a single {env_instance_type} CCQ enabled {scheduler} Scheduler, a {env_instance_type} Login instance, EFS backed shared home directories, a EFS backed shared filesystem, and a {env_instance_type} NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_type}', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-login1: {{'name': 'Login', 'instanceType': '{env_type}', "fsChoice": "OrangeFS"}}
-nat1: {{'instanceType': '{env_type}', 'accessFrom': '0.0.0.0/0'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_instance_type}', 'name': 'my{scheduler}', "fsChoice": "OrangeFS"}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_instance_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+login1: {{'name': 'Login', 'instanceType': '{env_instance_type}', "fsChoice": "OrangeFS"}}
+nat1: {{'instanceType': '{env_instance_type}', 'accessFrom': '0.0.0.0/0'}}
+s3: {{"name": "testerbucket", "type": "common", "encrypt": "true"}}
 """)
         f.close()
 
@@ -750,12 +748,12 @@ environmentName: {username}
 cloudType: gcp
 email:
 sender:
-sendpw: 
-smtp: 
+sendpw:
+smtp:
 
 [CloudyClusterGcp]
 keyName: {username}
-instanceType: {env_type}
+instanceType: {env_instance_type}
 networkCidr: 0.0.0.0/0
 region: {region}
 zone: {az}
@@ -781,13 +779,13 @@ az: {az}
 {job_config}
 
 [tester_template]
-description: Creates a CloudyCluster Environment that contains a single {env_type} CCQ enabled {scheduler} Scheduler, a {env_type} Login instance, a 100GB OrangeFS Filesystem, and a {env_type} NAT instance.
+description: Creates a CloudyCluster Environment that contains a single {env_instance_type} CCQ enabled {scheduler} Scheduler, a {env_instance_type} Login instance, a 100GB OrangeFS Filesystem, and a {env_instance_type} NAT instance.
 vpcCidr: 10.0.0.0/16
 fsChoice: OrangeFS
-scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_type}', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
-filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
-login1: {{'name': 'login', 'instanceType': '{env_type}', 'fsChoice': 'OrangeFS'}}
-nat1: {{'instanceType': '{env_type}', 'accessFrom': '0.0.0.0/0'}}
+scheduler1: {{'type': '{scheduler}', 'ccq': 'true', 'instanceType': '{env_instance_type}', 'name': '{lower_sched}', 'schedAllocationType': 'cons_res', 'fsChoice': 'OrangeFS'}}
+filesystem1: {{"numberOfInstances": 4, "instanceType": "{env_instance_type}", "name": "orangefs", "filesystemSizeGB": "20", "storageVolumeType": "SSD", "orangeFSIops": 0, "instanceIops": 0, 'fsChoice': 'OrangeFS'}}
+login1: {{'name': 'login', 'instanceType': '{env_instance_type}', 'fsChoice': 'OrangeFS'}}
+nat1: {{'instanceType': '{env_instance_type}', 'accessFrom': '0.0.0.0/0'}}
 """)
         f.close()
 

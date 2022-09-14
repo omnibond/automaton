@@ -58,7 +58,7 @@ class CloudyClusterTemplate(EnvironmentTemplate):
 
         validEfsParameters = {"type": "type", "name": "efsName"}
 
-        validS3Parameters = {"name": "s3Name", "encrypt": "s3Encryption"}
+        validS3Parameters = {"name": "s3Name", "type": "common", "encrypt": "s3Encryption"}
 
         validSchedulerTypes = ["Slurm", "Torque"]
 

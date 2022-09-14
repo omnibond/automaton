@@ -4,14 +4,14 @@ Licensed under either of:
     LGPL License, Version 2.0 (LICENSE-LGPLv2 or https://www.gnu.org/licenses/old-licenses/lgpl-2.0.txt)
 at your option.
 
-The Automaton Project or academically referenced as PAW (Provisioning And Workflow) is a management tool is an tool designed to automate the steps required to dynamically provisioning a large scale cluster environment in the cloud, executing a set of jobs or a custom workflow, and after the jobs have completed de-provisioning the cluster environment in a single operation. For more details on the technical implementation and design please read the following paper located at: https://tigerprints.clemson.edu/computing_pubs/38.
+The Automaton Project or academically referenced as PAW (Provisioning And Workflow) is a management tool designed to automate the steps required to dynamically provisioning a large scale cluster environment in the cloud, executing a set of jobs or a custom workflow, and after the jobs have completed de-provisioning the cluster environment in a single operation. For more details on the technical implementation and design please read the following paper located at: https://tigerprints.clemson.edu/computing_pubs/38.
 
 It is driven by a single configuration file that defines all of the parameters required to create a fully functional HPC Environment in the Cloud. It is designed to be modular and pluggable to allow it to support a variety of HPC Schedulers, environment types, workflows, and cloud providers. This initial implementation of PAW utilizes CloudyCluster and AWS to perform the dynamic provisioning, workflow execution, and automated de-provisioning of the HPC Environment. The sections of the configuration file and their parameters are discussed further on in this document.
 
 #########################
 #  Template Generation  #
 #########################
-Environment creation within ccAutomaton is driven by templates. These templates define what resources are to be created within the Environment. PAW includes a template generator that can generate templates defined within a ccAutomaton configuration file. The exact specifications of what a template can contain and how to format it can within a ccAutomaton configuration file can be found in the Configuration File section of this document.
+Environment creation within ccAutomaton is driven by templates. These templates define what resources are to be created within the Environment. PAW includes a template generator that can generate templates defined within a ccAutomaton configuration file. The exact specifications of what a template can contain and how to format it within a ccAutomaton configuration file can be found in the Configuration File section of this document.
 
 ccAutomaton Template Generator Arguments (these can also be found by using the -h argument):
 -et <environmentType> The type of environment to create the template for.
