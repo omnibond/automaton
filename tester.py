@@ -464,9 +464,16 @@ def make_cft(url, image, output):
     template = json.load(f)
     f.close()
 
-    template["Outputs"]["InstanceID"] = {"Value": {"Ref": "CloudyClusterControlNode"}}
+    if "CloudyClusterControlInstance" in template["Resources"]:
+        name = "CloudyClusterControlInstance"
+    elif "CloudyClusterControlNode" in template["Resources"]:
+        name = "CloudyClusterControlNode"
+    else:
+        raise Exception("cannot modify CFT for use with tester")
+
+    template["Outputs"]["InstanceID"] = {"Value": {"Ref": name}}
     template["Parameters"]["ImageId"] = {"Type": "String", "Default": image}
-    template["Resources"]["CloudyClusterControlNode"]["Properties"]["ImageId"] = {"Ref": "ImageId"}
+    template["Resources"][name]["Properties"]["ImageId"] = {"Ref": "ImageId"}
 
     f = open(output, "w")
     json.dump(template, f)
