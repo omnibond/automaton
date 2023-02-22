@@ -131,17 +131,12 @@ cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
         for i in range(self.count):
-<<<<<<< HEAD
-            f.write(f"""#srun $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
-mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
-=======
             f.write(f"""mpiexec -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 
 # For Intel MPI
 cd $SHARED_FS_NAME/samplejobs/mpi
 export I_MPI_PMI_LIBRARY=/opt/slurm/lib/libpmi.so
 srun -n 4 $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
->>>>>>> changed some arguments to the tester and added missing parameters
 """)
             # f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 # """)
@@ -482,7 +477,7 @@ def make_cft(url, output):
 
     template["Outputs"]["InstanceID"] = {"Value": {"Ref": name}}
     template["Parameters"]["ImageId"] = {"Type": "String"}
-    template["Resources"]["CloudyClusterControlNode"]["Properties"]["ImageId"] = {"Ref": "ImageId"}
+    template["Resources"][name]["Properties"]["ImageId"] = {"Ref": "ImageId"}
 
     f = open(output, "w")
     json.dump(template, f)

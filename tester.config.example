@@ -20,7 +20,7 @@ sourceimage = projects/cloudyclusterfirebasedev/global/images/IMAGE
 sourceimage = ami-IMAGE
 ;version 3.2.1
 ;for a more updated version visit https://aws.amazon.com/marketplace/pp/prodview-am3yf3mjcj2bs
-cft_url = https://s3.amazonaws.com/awsmp-fulfillment-cf-templates-prod/73bcd10f-81b6-4fbb-b113-6e5e72ec1f89/035d6c04554940329959a615ec29f848.template
+cft_url = https://awsmp-fulfillment-cf-templates-prod.s3-external-1.amazonaws.com/73bcd10f-81b6-4fbb-b113-6e5e72ec1f89.052caefc-0b6c-416f-9e8f-e45c75c7c570.template
 ;service_account for gcp only
 service_account = SERVICE_ACCOUNT
 ssh_private_key = /home/USER/.ssh/id_rsa
