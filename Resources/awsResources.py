@@ -66,7 +66,7 @@ class AwsResources(Resource):
         client = None
         cftBody = ""
         print("About to get those parameters")
-        parameters = [{'ParameterKey': 'KeyName', 'ParameterValue': str(options['keyname'])}, {'ParameterKey': 'InstanceType', 'ParameterValue': str(options['instancetype'])}, {'ParameterKey': 'NetworkCIDR', 'ParameterValue': str(options['networkcidr'])}, {'ParameterKey': 'vpc', 'ParameterValue': str(options['vpc'])}, {'ParameterKey': 'PublicSubnet', 'ParameterValue': str(options['publicsubnet'])}]
+        parameters = [{'ParameterKey': 'KeyName', 'ParameterValue': str(options['keyname'])}, {'ParameterKey': 'InstanceType', 'ParameterValue': str(options['instancetype'])}, {'ParameterKey': 'ImageId', 'ParameterValue': str(options['imageid'])}, {'ParameterKey': 'NetworkCIDR', 'ParameterValue': str(options['networkcidr'])}, {'ParameterKey': 'vpc', 'ParameterValue': str(options['vpc'])}, {'ParameterKey': 'PublicSubnet', 'ParameterValue': str(options['publicsubnet'])}]
         capabilities = str(options['capabilities']).split(",")
 
         values = self.createBotocoreClient("cloudformation")

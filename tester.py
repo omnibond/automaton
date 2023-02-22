@@ -131,8 +131,17 @@ cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
         for i in range(self.count):
+<<<<<<< HEAD
             f.write(f"""#srun $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+=======
+            f.write(f"""mpiexec -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+
+# For Intel MPI
+cd $SHARED_FS_NAME/samplejobs/mpi
+export I_MPI_PMI_LIBRARY=/opt/slurm/lib/libpmi.so
+srun -n 4 $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+>>>>>>> changed some arguments to the tester and added missing parameters
 """)
             # f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 # """)
@@ -450,7 +459,7 @@ def run(args, timeout=0, die=True, output=None):
         output.close()
     return buffer, fail
 
-def make_cft(url, image, output):
+def make_cft(url, output):
     name = os.path.basename(url)
 
     try:
@@ -472,8 +481,8 @@ def make_cft(url, image, output):
         raise Exception("cannot modify CFT for use with tester")
 
     template["Outputs"]["InstanceID"] = {"Value": {"Ref": name}}
-    template["Parameters"]["ImageId"] = {"Type": "String", "Default": image}
-    template["Resources"][name]["Properties"]["ImageId"] = {"Ref": "ImageId"}
+    template["Parameters"]["ImageId"] = {"Type": "String"}
+    template["Resources"]["CloudyClusterControlNode"]["Properties"]["ImageId"] = {"Ref": "ImageId"}
 
     f = open(output, "w")
     json.dump(template, f)
@@ -524,6 +533,7 @@ def main():
         KeyName = cp.get("tester", "KeyName")
         vpc_id = cp.get("tester", "vpc_id")
         subnet_id = cp.get("tester", "subnet_id")
+        cft_url = cp.get("tester", "cft_url")
 
     try:
         output_part1 = cp.get("tester", "output_part1")
@@ -710,6 +720,7 @@ vpc: {vpc_id}
 publicSubnet: {subnet_id}
 capabilities: CAPABILITY_IAM
 region: {region}
+ImageId: {sourceimage}
 templateLocation: cloudyClusterCloudFormationTemplate.json
 
 # Can use a pre-created template if the user doesn't want to do the advanced stuff
@@ -739,7 +750,7 @@ s3: {{"name": "testerbucket", "type": "common", "encrypt": "true"}}
 """)
         f.close()
 
-        make_cft("https://s3.amazonaws.com/awsmp-fulfillment-cf-templates-prod/73bcd10f-81b6-4fbb-b113-6e5e72ec1f89/035d6c04554940329959a615ec29f848.template", sourceimage, "cloudyClusterCloudFormationTemplate.json")
+        make_cft(cft_url, "cloudyClusterCloudFormationTemplate.json")
 
     else:
         f = open(f"ConfigurationFiles/{confFile}", "w")
