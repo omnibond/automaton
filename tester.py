@@ -96,13 +96,14 @@ sh mpi_prime_compile.sh
         
 
 class MPIJob(Job):
-    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False, count=1):
+    def __init__(self, name, output_dir, nodes, processes, instance_type=None, preemptible=False, expected_fail=False, mpi_type="openmpi/4.1.2", count=1):
         self.nodes = nodes
         self.processes = processes
         self.instance_type = instance_type
         self.preemptible = preemptible
         self.expected_fail = expected_fail
         self.count = count
+        self.mpi_type = mpi_type
 
         super().__init__(name, output_dir, monitor=False)
 
@@ -126,20 +127,21 @@ class MPIJob(Job):
                 f.write(f"#CC -it c5n.18xlarge\n")
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
-module add openmpi/4.1.2
-cd $SHARED_FS_NAME/samplejobs/mpi
+module add {self.mpi_type}
+#cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
         for i in range(self.count):
-            f.write(f"""mpiexec -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
-
-# For Intel MPI
+            if self.mpi_type.startswith("intelmpi"):
+                f.write(f"""# For Intel MPI
 cd $SHARED_FS_NAME/samplejobs/mpi
 export I_MPI_PMI_LIBRARY=/opt/slurm/lib/libpmi.so
-srun -n 4 $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+srun -n {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """)
-            # f.write(f"""mpirun -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
-# """)
+            else:
+                f.write(f"""mpiexec -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+
+""")
 
     def output(self, output, error):
         error_flag = False
