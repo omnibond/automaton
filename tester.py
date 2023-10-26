@@ -128,18 +128,17 @@ class MPIJob(Job):
 
         f.write(f"""export SHARED_FS_NAME=/mnt/orangefs
 module add {self.mpi_type}
-#cd $SHARED_FS_NAME/samplejobs/mpi
+cd $SHARED_FS_NAME/samplejobs/mpi
 """)
 
         for i in range(self.count):
             if self.mpi_type.startswith("intelmpi"):
                 f.write(f"""# For Intel MPI
-cd $SHARED_FS_NAME/samplejobs/mpi
 export I_MPI_PMI_LIBRARY=/opt/slurm/lib/libpmi.so
 srun -n {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 """)
             else:
-                f.write(f"""mpiexec -np {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
+                f.write(f"""srun -n {self.nodes*self.processes} $SHARED_FS_NAME/samplejobs/mpi/mpi_prime
 
 """)
 
